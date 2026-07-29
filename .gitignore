@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+*.log
+.DS_Store
+coverage
+release/
+apps/dashboard/public/data/*.json
+apps/dashboard/metrics/*
+!apps/dashboard/metrics/.gitkeep
+
+# Pi agent local config
+.pi/

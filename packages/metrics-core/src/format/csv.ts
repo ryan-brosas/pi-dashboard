@@ -1,0 +1,59 @@
+import type { MultiSessionSummary } from '../types';
+
+/** Minimal CSV escaping — quote if contains comma, quote, or newline */
+function csvEscape(s: string): string {
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+/**
+ * Export a MultiSessionSummary as a CSV string.
+ * One row per session, with aggregate summary as a final row.
+ */
+export function exportMultiSessionCsv(summary: MultiSessionSummary): string {
+  const header = [
+    'Run',
+    'Requests',
+    'Avg TPS',
+    'Weighted TPS',
+    'Avg TTFT (ms)',
+    'Cost (USD)',
+    'Tokens',
+    'Output',
+    'Provider',
+    'Start',
+    'End',
+  ].join(',');
+
+  const rows = summary.sessions.map(s => [
+    csvEscape(s.fileName ?? s.sessionId),
+    s.totalCalls,
+    s.avgTps.toFixed(1),
+    s.weightedTps.toFixed(1),
+    Math.round(s.avgTtft),
+    s.totalCostUsd !== null ? s.totalCostUsd.toFixed(4) : '',
+    s.totalTokens,
+    s.totalOutput,
+    csvEscape(s.provider),
+    csvEscape(s.timeRange.start),
+    csvEscape(s.timeRange.end),
+  ].join(','));
+
+  const totalRow = [
+    csvEscape(`TOTAL (${summary.sessionCount})`),
+    summary.totalCalls,
+    summary.avgTps.toFixed(1),
+    summary.weightedTps.toFixed(1),
+    Math.round(summary.avgTtft),
+    summary.totalCostUsd !== null ? summary.totalCostUsd.toFixed(4) : '',
+    summary.totalTokens,
+    summary.totalOutput,
+    '',
+    csvEscape(summary.timeRange.start),
+    csvEscape(summary.timeRange.end),
+  ].join(',');
+
+  return [header, ...rows, totalRow].join('\n');
+}

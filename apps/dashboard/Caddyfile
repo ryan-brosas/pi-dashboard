@@ -1,0 +1,16 @@
+{$CADDY_DOMAIN} {
+	# Sanitized hourly metrics (no transcript content)
+	handle_path /feed/* {
+		root * {$METRICS_ROOT}
+		file_server
+	}
+
+	# Static dashboard (DuckDB-Wasm runs entirely client-side)
+	handle {
+		root * {$DASHBOARD_ROOT}
+		try_files {path} /index.html
+		file_server
+	}
+
+	header /duckdb/* Cache-Control "public, max-age=86400"
+}

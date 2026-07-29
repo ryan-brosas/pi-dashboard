@@ -1,0 +1,92 @@
+import React, { useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { Trophy } from '@phosphor-icons/react';
+import {
+  formatCurrency, formatDuration, formatNumber, formatTps, type ModelInfo,
+} from '@pi-tps/metrics-core';
+
+interface Props {
+  models: ModelInfo[];
+  avgTps: number;
+  weightedTps: number;
+  totalCalls: number;
+  estimatedModelIds: Set<string>;
+}
+
+function ModelPerformanceInner({ models, avgTps, weightedTps, totalCalls, estimatedModelIds }: Props) {
+  const rows = useMemo(() => models.map((model) => ({
+    ...model,
+    costPerMillion: model.blendedCostUsd !== null && model.totalTokens > 0
+      ? model.blendedCostUsd / (model.totalTokens / 1_000_000)
+      : null,
+    estimated: estimatedModelIds.has(`${model.provider}:${model.modelId}`),
+  })), [estimatedModelIds, models]);
+
+  if (rows.length < 2) return null;
+  const fastest = rows.filter((row) => row.avgTps !== null)
+    .sort((a, b) => (b.avgTps ?? 0) - (a.avgTps ?? 0))[0];
+  const cheapest = rows.filter((row) => row.costPerMillion !== null)
+    .sort((a, b) => (a.costPerMillion ?? Infinity) - (b.costPerMillion ?? Infinity))[0];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="card-surface p-6"
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <Trophy size={16} className="text-accent" weight="bold" />
+        <h2 className="text-lg font-semibold tracking-tight text-zinc-800 dark:text-zinc-300">Model Performance</h2>
+        <span className="ml-auto text-[10px] metric-mono text-zinc-400 dark:text-zinc-500">{rows.length} models · {formatNumber(totalCalls, 0)} calls</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="border-b border-zinc-200/40 text-[9px] uppercase tracking-wider text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500">
+              <th className="px-3 py-2 text-left font-medium">Model</th>
+              <th className="px-3 py-2 text-right font-medium">Provider</th>
+              <th className="px-3 py-2 text-right font-medium">Calls</th>
+              <th className="px-3 py-2 text-right font-medium">Tokens</th>
+              <th className="px-3 py-2 text-right font-medium">Avg TPS</th>
+              <th className="px-3 py-2 text-right font-medium">Avg TTFT</th>
+              <th className="px-3 py-2 text-right font-medium">Cost/1M</th>
+              <th className="px-3 py-2 text-right font-medium">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const isFastest = row === fastest;
+              const isCheapest = row === cheapest && !isFastest;
+              return (
+                <tr key={`${row.provider}:${row.modelId}`} className="border-b border-zinc-200/20 dark:border-white/[0.03]">
+                  <td className="px-3 py-2.5 font-medium text-zinc-700 dark:text-zinc-300">
+                    <div className="flex items-center gap-1.5">
+                      {isFastest && <span className="rounded bg-moss/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-moss">Fastest</span>}
+                      {isCheapest && <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">Cheapest</span>}
+                      <span className="max-w-[12rem] truncate">{row.modelId.split('/').pop()}</span>
+                      {row.estimated && <span className="text-[8px] font-semibold uppercase text-accent">est.</span>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-zinc-500 dark:text-zinc-400">{row.provider}</td>
+                  <td className="px-3 py-2.5 text-right metric-mono">{formatNumber(row.callCount, 0)}</td>
+                  <td className="px-3 py-2.5 text-right metric-mono">{formatNumber(row.totalTokens)}</td>
+                  <td className="px-3 py-2.5 text-right metric-mono">{row.avgTps !== null ? formatTps(row.avgTps) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right metric-mono">{row.avgTtftMs !== null ? formatDuration(Math.round(row.avgTtftMs)) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right metric-mono">{row.costPerMillion !== null ? `$${row.costPerMillion.toFixed(4)}` : '—'}</td>
+                  <td className="px-3 py-2.5 text-right metric-mono">{row.blendedCostUsd !== null ? formatCurrency(row.blendedCostUsd) : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-3 flex items-center gap-4 border-t border-zinc-200/40 pt-3 text-[10px] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500">
+        <span>Avg TPS <span className="metric-mono font-medium text-zinc-600 dark:text-zinc-300">{formatTps(avgTps)}</span></span>
+        <span>Wtd TPS <span className="metric-mono font-medium text-accent">{formatTps(weightedTps)}</span></span>
+      </div>
+    </motion.div>
+  );
+}
+
+export default React.memo(ModelPerformanceInner);

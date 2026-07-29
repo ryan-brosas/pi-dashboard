@@ -1,0 +1,360 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+:root {
+  color-scheme: dark;
+  --color-black: #0a0a0a;
+  --color-black-soft: #111111;
+  --color-black-raised: #141414;
+  --color-white: #fafafa;
+  --color-red: #ff5555;
+  --color-yellow: #ecc90f;
+
+  --bg: var(--color-black);
+  --chrome: #0d0d0d;
+  --surface: #121212;
+  --surface-raised: #181818;
+  --surface-muted: #0f0f0f;
+  --content-max: 90rem;
+  --shell-sidebar: 14.5rem;
+  --panel-radius: 0.5rem;
+  --border: #262626;
+  --border-strong: #404040;
+  --text-primary: var(--color-white);
+  --text-secondary: #a1a1a1;
+  --text-tertiary: #858585;
+  --text-inverse: var(--color-black);
+  --logo-color: var(--color-white);
+  --accent: #f4f4f5;
+  --accent-light: #ffffff;
+  --accent-muted: #d4d4d8;
+  --accent-foreground: #111111;
+  --focus-ring: #ff6b6b;
+  --brand: #ff5b5b;
+  --brand-light: #ff7a7a;
+  --brand-muted: #c93636;
+  --brand-text: #ff6b6b;
+  --signal: var(--color-yellow);
+  --signal-foreground: var(--color-black);
+  --chart-primary: var(--color-red);
+  --chart-secondary: var(--color-yellow);
+  --chart-positive: #6ee7b7;
+  --chart-warning: var(--color-yellow);
+  --chart-danger: #ff8178;
+  --chart-grid: rgba(250, 250, 250, 0.1);
+  --chart-axis: #858585;
+}
+
+.light {
+  color-scheme: light;
+  --bg: #f4f4f4;
+  --chrome: #ffffff;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-muted: #ededed;
+  --border: #e0e0e0;
+  --border-strong: #b0b0b0;
+  --text-primary: #0a0a0a;
+  --text-secondary: #525252;
+  --text-tertiary: #686868;
+  --text-inverse: #ffffff;
+  --logo-color: #181818;
+  --accent: #18181b;
+  --accent-light: #27272a;
+  --accent-muted: #3f3f46;
+  --accent-foreground: #ffffff;
+  --focus-ring: #b83232;
+  --brand: #b83232;
+  --brand-light: #d63e3e;
+  --brand-muted: #8f2929;
+  --brand-text: #a9231a;
+  --signal: #806700;
+  --signal-foreground: #ffffff;
+  --chart-primary: #d83f3f;
+  --chart-secondary: #806700;
+  --chart-positive: #15803d;
+  --chart-warning: #806700;
+  --chart-danger: #b42318;
+  --chart-grid: rgba(10, 10, 10, 0.08);
+  --chart-axis: #686868;
+}
+
+.light .text-zinc-400 {
+  color: var(--text-tertiary);
+}
+
+html {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100dvh;
+}
+
+::selection {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .card-surface {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--panel-radius);
+    box-shadow: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .card-surface:has(:focus-visible),
+  .card-surface:hover {
+    border-color: var(--border-strong);
+  }
+
+  .glass-panel {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--panel-radius);
+    box-shadow: none;
+  }
+
+  .metric-mono {
+    font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .ui-kicker {
+    color: var(--text-tertiary);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .ui-title {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  .metric-value {
+    color: var(--text-primary);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    letter-spacing: -0.04em;
+  }
+
+  .text-gradient {
+    color: var(--brand);
+  }
+
+  .shimmer-bg {
+    background: var(--surface-raised);
+    animation: subtle-pulse 2s ease-in-out infinite;
+  }
+
+  .skeleton {
+    background: var(--surface-muted);
+    border-radius: 0.25rem;
+    animation: subtle-pulse 1.6s ease-in-out infinite;
+  }
+
+  .skeleton-text {
+    background: var(--surface-muted);
+    border-radius: 0.125rem;
+    animation: subtle-pulse 1.6s ease-in-out infinite;
+  }
+
+  .panel {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--panel-radius);
+    box-shadow: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .panel:hover {
+    border-color: var(--border-strong);
+  }
+
+  .ui-label {
+    color: var(--text-tertiary);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    position: relative;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--brand);
+  }
+
+  .status-dot::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 9999px;
+    background: var(--brand);
+    animation: status-pulse 2s ease-out infinite;
+    opacity: 0.4;
+    z-index: -1;
+  }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+@keyframes status-pulse {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton, .skeleton-text, .shimmer-bg, .status-dot::after {
+    animation: none;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-tertiary) 50%, transparent) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--text-tertiary) 50%, transparent);
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--text-tertiary) 70%, transparent);
+  }
+  .light .scrollbar-thin {
+    scrollbar-color: color-mix(in srgb, var(--text-tertiary) 45%, transparent) transparent;
+  }
+  .light .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--text-tertiary) 45%, transparent);
+  }
+  .light .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--text-tertiary) 65%, transparent);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-tertiary) 38%, transparent) transparent;
+    overscroll-behavior: none;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--text-tertiary) 42%, transparent);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--text-tertiary) 60%, transparent);
+  }
+  .light .custom-scrollbar {
+    scrollbar-color: color-mix(in srgb, var(--text-tertiary) 35%, transparent) transparent;
+  }
+  .light .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--text-tertiary) 35%, transparent);
+  }
+  .light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--text-tertiary) 55%, transparent);
+  }
+}
+
+/* CodeMirror SQL autocomplete tooltip */
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.24);
+}
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete > ul > li {
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete > ul > li[aria-selected] {
+  background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete > ul > li .cm-completionLabel {
+  color: var(--text-primary);
+}
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete > ul > li[aria-selected] .cm-completionLabel {
+  color: var(--accent);
+}
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete > ul > li .cm-completionDetail {
+  color: var(--text-tertiary);
+  font-style: normal;
+}
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete > ul > li[aria-selected] .cm-completionDetail {
+  color: var(--text-secondary);
+}
+
+/* Autocomplete icons */
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete .cm-completionIcon-class::after { content: '●' !important; font-size: 10px !important; color: var(--accent); }
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete .cm-completionIcon-property::after { content: '▪' !important; font-size: 9px !important; color: var(--text-secondary); }
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete .cm-completionIcon-keyword::after { content: '◆' !important; font-size: 9px !important; color: var(--accent); }
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete .cm-completionIcon-function::after { content: 'ƒ' !important; color: var(--text-secondary); }
+.cm-tooltip.cm-tooltip-autocomplete.cm-tps-autocomplete .cm-completionIcon-type::after { content: '⟩' !important; color: var(--chart-positive); }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
+@keyframes tooltip-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-tooltip-in {
+  animation: tooltip-in 0.2s cubic-bezier(0.3, 0.85, 0.4, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in { animation: none; }
+}

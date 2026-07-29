@@ -1,0 +1,3 @@
+#!/bin/sh
+# Pre-commit hook — run the same gate as `pnpm precommit`
+exec npm run precommit

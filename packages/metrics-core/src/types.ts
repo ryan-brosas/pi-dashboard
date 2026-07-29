@@ -1,0 +1,310 @@
+export interface TelemetryEvent {
+  /** Session this event belongs to. Set during ingestion. */
+  sessionId: string;
+  id: string;
+  parentId: string | null;
+  timestamp: string;
+  type: 'tps' | 'usage' | 'energy' | 'rewind' | 'model_change' | 'branch_summary' | 'message' | 'activity';
+}
+
+export interface TpsPayload {
+  model: {
+    provider: string;
+    modelId: string;
+  };
+  tokens: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    total: number;
+  };
+  timing: {
+    ttftMs: number;
+    totalMs: number;
+    generationMs: number;
+    /** Inter-update span: first streaming update → last streaming update. Null when no streaming updates after TTFT. */
+    streamMs?: number | null;
+    stallMs: number;
+    stallCount: number;
+    messageCount: number;
+  };
+  tps: number;
+  /** Token cost from provider billing (via pi-ai Usage.cost). null if not available. */
+  cost: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    total: number;
+  } | null;
+  /**
+   * Blended $/M-tokens rate precomputed by pi-tps at turn end
+   * (rateUsdPerMTokens = effectiveCost / (tokens.total / 1_000_000)).
+   * The effective cost is the Neuralwatt billed cost when available,
+   * otherwise the list-price compute cost — exactly the value the
+   * pi-tps notification banner shows as `$X.XX/M`. null when the
+   * turn predates this field (older sessions) or when no usable
+   * cost/tokens were available; callers fall back to deriving it
+   * from cost/energy + tokens.
+   */
+  rateUsdPerMTokens?: number | null;
+  timestamp: number;
+}
+
+/** Native per-response usage from Pi assistant messages. */
+export interface UsagePayload {
+  model: { provider: string; modelId: string };
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number };
+  cost: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number } | null;
+}
+
+export interface UsageEvent extends TelemetryEvent {
+  type: 'usage';
+  data: UsagePayload;
+}
+
+export interface EnergyPayload {
+  energy_joules: number;
+  cost_usd: number;
+  // Raw SSE payloads — present in newer entries. Source of truth for MCR
+  // and any future upstream fields that the provider captures verbatim.
+  sse_energy_raw?: Record<string, unknown>;
+  sse_mcr_session_raw?: Record<string, unknown>;
+  sse_cost_raw?: Record<string, unknown>;
+}
+
+export interface TpsEvent extends TelemetryEvent {
+  type: 'tps';
+  data: TpsPayload;
+}
+
+export interface EnergyEvent extends TelemetryEvent {
+  type: 'energy';
+  data: EnergyPayload;
+}
+
+export interface RewindEvent extends TelemetryEvent {
+  type: 'rewind';
+  data: {
+    v: number;
+    snapshots: string[];
+    bindings: [string, number][];
+  };
+}
+
+export interface ModelChangeEvent extends TelemetryEvent {
+  type: 'model_change';
+  provider: string;
+  modelId: string;
+}
+
+export interface BranchSummaryEvent extends TelemetryEvent {
+  type: 'branch_summary';
+  fromId: string;
+  summary: string;
+}
+
+export interface MessagePayload {
+  role: string;
+  content: string;
+  model: string | null;
+}
+
+export interface MessageEvent extends TelemetryEvent {
+  type: 'message';
+  data: MessagePayload;
+}
+
+/**
+ * Hourly activity summary from the sanitized relay exporter. Carries only
+ * aggregate counts for a single hour bucket — no prompt text, no tool
+ * content, no transcript. The relay deduplicates against stable entry
+ * identity before emitting, so a replayed export does not double-count.
+ */
+export interface ActivityPayload {
+  /** User prompts observed in this hour. */
+  prompts: number;
+  /** Total matched bad-word occurrences across the hour's prompts. */
+  swearCount: number;
+  /** Distinct five-minute windows containing at least one user prompt. */
+  humanActiveMinutes: number;
+  /** Distinct five minute windows containing at least one model/tool call. */
+  agentActiveMinutes: number;
+}
+
+export interface ActivityEvent extends TelemetryEvent {
+  type: 'activity';
+  data: ActivityPayload;
+}
+
+export type ParsedEvent = TpsEvent | UsageEvent | EnergyEvent | RewindEvent | ModelChangeEvent | BranchSummaryEvent | MessageEvent | ActivityEvent;
+
+export interface ModelInfo {
+  modelId: string;
+  provider: string;
+  callCount: number;
+  /** Tokens generated/consumed by this model */
+  totalTokens: number;
+  /** Average effective TPS across this model's calls. null when no TPS data. */
+  avgTps: number | null;
+  /** Maximum effective TPS observed for this model. null when no TPS data. */
+  maxTps: number | null;
+  /** Average TTFT in milliseconds across this model's calls. null when no TTFT data. */
+  avgTtftMs: number | null;
+  /** Energy-only cost for this model (neuralwatt). null when no energy data. */
+  energyCostUsd: number | null;
+  /** Energy consumed by this model in joules. null when no energy data. */
+  energyJoules: number | null;
+  /** Blended cost for this model (energy preferred, token-pricing fallback). null when no cost data at all. */
+  blendedCostUsd: number | null;
+  /** Cost attribution source for this model */
+  costSource: 'neuralwatt' | 'tps' | null;
+}
+
+export interface ConversationSummary {
+  totalCalls: number;
+  totalTokens: number;
+  totalInput: number;
+  totalOutput: number;
+  totalCacheRead: number;
+  totalCacheWrite: number;
+  /** Wall-clock span from first TPS event to last */
+  wallClockMs: number;
+  totalTimeMs: number;
+  totalGenerationMs: number;
+  totalStallMs: number;
+  totalStallCount: number;
+  /** Simple arithmetic mean of per-request TPS values (active/generation rate) */
+  avgTps: number;
+  /** Output-token-weighted TPS: sum(tps_i × output_i) / sum(output_i) — longer outputs contribute proportionally more */
+  weightedTps: number;
+  /** Simple arithmetic mean of per-request wall-clock TPS (includes TTFT and stalls) */
+  avgWallTps: number;
+  /** Output-token-weighted wall-clock TPS: total output / total wall time */
+  weightedWallTps: number;
+  /** Average TPS loss: percentage of active throughput lost to stalls/TTFT/gaps */
+  tpsLoss: number;
+  /** Weighted TPS loss: percentage of weighted active throughput lost */
+  weightedTpsLoss: number;
+  avgTtft: number;
+  /** TTFT percentiles */
+  ttftP50: number;
+  ttftP75: number;
+  ttftP90: number;
+  ttftP99: number;
+  totalCostUsd: number | null;
+  /** 'neuralwatt' = only energy costs, 'tps' = only token costs, 'both' = mixed (energy preferred where paired), null = no cost data */
+  costSource: 'neuralwatt' | 'tps' | 'both' | null;
+  /** Cost derived strictly from energy events (neuralwatt), excluding provider token-pricing fallbacks. Null when no energy data. */
+  energyCostUsd: number | null;
+  totalEnergyJoules: number | null;
+  /** Average tokens consumed per LLM call */
+  avgTokensPerCall: number;
+  /** Number of calls that experienced at least one stall */
+  stalledCalls: number;
+  /** Number of calls that read from cache */
+  cachedCalls: number;
+  /** Number of calls with TTFT < 3s */
+  fastCalls: number;
+  minTtft: number;
+  maxTtft: number;
+  model: string;
+  provider: string;
+  models: ModelInfo[];
+  timeRange: {
+    start: string;
+    end: string;
+  };
+  /** Number of rewind (branch) events in the session */
+  rewindCount: number;
+  /** Number of model change events in the session */
+  modelChangeCount: number;
+}
+
+export interface SessionSummary {
+  sessionId: string;
+  fileName: string | null;
+  totalCalls: number;
+  totalTokens: number;
+  totalOutput: number;
+  wallClockMs: number;
+  avgTps: number;
+  weightedTps: number;
+  avgTtft: number;
+  totalCostUsd: number | null;
+  totalEnergyJoules: number | null;
+  model: string;
+  provider: string;
+  models: ModelInfo[];
+  timeRange: {
+    start: string;
+    end: string;
+  };
+  stalledCalls: number;
+}
+
+export interface MultiSessionSummary {
+  sessionCount: number;
+  totalCalls: number;
+  totalTokens: number;
+  totalOutput: number;
+  totalCostUsd: number | null;
+  totalEnergyJoules: number | null;
+  /** Per-session breakdowns, sorted by timeRange.start */
+  sessions: SessionSummary[];
+  /** Per-model aggregates across all sessions */
+  models: ModelInfo[];
+  /** Cross-session TPS stats */
+  avgTps: number;
+  weightedTps: number;
+  avgTtft: number;
+  /** Time span across all sessions */
+  timeRange: {
+    start: string;
+    end: string;
+  };
+}
+
+export interface DataThresholds {
+  /** Token count at which cache efficiency meaningfully improves */
+  cacheThreshold: number;
+  /** Token count below which requests are considered "small context" */
+  lowContext: number;
+  /** TTFT above which a request is considered slow */
+  slowTtft: number;
+  /** TTFT below which a request is considered fast */
+  fastTtft: number;
+  /** New-input ratio above which a request is considered cache-miss-heavy */
+  highNewInputRatio: number;
+  /** Absolute token input above which a request is flagged as anomaly */
+  anomalyInputThreshold: number;
+  /** Minimum total tokens for cache-drop detection */
+  cacheDropMinTotal: number;
+  /** Minimum new-input tokens for cache-drop detection */
+  cacheDropMinInput: number;
+  /** New-input ratio for high-new-input anomaly */
+  highInputRatio: number;
+  /** New-input token count for severity escalation */
+  highInputSeverityToken: number;
+  /** Stall count threshold */
+  stallCountThreshold: number;
+  /** Stall ms threshold for high severity */
+  stallMsSeverity: number;
+}
+
+/** Session state for the main app — tracks loaded files and their parsed events */
+export interface SessionState {
+  raw: string;
+  ingest: { events: ParsedEvent[]; assistantMessages: unknown[]; hasTpsEntries: boolean; hasLegacyTpsEntries: boolean; timestampById: Map<string, string>; synthCounter: number; sessionId: string };
+  events: ParsedEvent[];
+  fileName?: string;
+}
+
+/** Default thresholds used before DuckDB query resolves */
+export const DEFAULT_THRESHOLDS: DataThresholds = {
+  cacheThreshold: 65000, lowContext: 32000, slowTtft: 15000, fastTtft: 3000,
+  highNewInputRatio: 0.15, anomalyInputThreshold: 10000, cacheDropMinTotal: 10000,
+  cacheDropMinInput: 5000, highInputRatio: 0.5, highInputSeverityToken: 20000,
+  stallCountThreshold: 3, stallMsSeverity: 5000,
+};

@@ -1,0 +1,173 @@
+import { describe, expect, it } from 'vitest';
+import {
+  compareModelPricing, estimateModelCost, findModelPerformance, findPricingModel,
+  findPricingPerformance, parsePerformanceCatalog, parsePricingCatalog, resolvePricingModel,
+  type TokenUsageMix,
+} from './pricing';
+
+const usage: TokenUsageMix = {
+  inputTokens: 25_000_000,
+  cacheReadTokens: 970_000_000,
+  cacheWriteTokens: 0,
+  outputTokens: 5_000_000,
+};
+
+const catalogPayload = {
+  generated_at: '2026-07-08T00:00:00.000Z',
+  total: 2,
+  models: [
+    {
+      id: 'google/gemini-test',
+      name: 'Gemini Test',
+      org: 'google',
+      provider: 'deepinfra',
+      context_length: 1_000_000,
+      pricing: { input: 1.25, output: 5, cache_read: 0.31, cache_write: null },
+      zdr: true,
+    },
+    {
+      id: 'anthropic/claude-test',
+      name: 'Claude Test',
+      org: 'anthropic',
+      provider: 'anthropic',
+      context_length: 200_000,
+      pricing: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
+    },
+  ],
+};
+
+describe('pricing catalog', () => {
+  it('parses the TokenWatch models response into a typed catalog', () => {
+    const result = parsePricingCatalog(catalogPayload);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.catalog.generatedAt).toBe('2026-07-08T00:00:00.000Z');
+    expect(result.catalog.models[0]).toMatchObject({
+      id: 'google/gemini-test', provider: 'deepinfra', contextLength: 1_000_000, zdr: true,
+    });
+  });
+
+  it('rejects malformed external responses instead of trusting unknown JSON', () => {
+    expect(parsePricingCatalog({ models: [{ id: 'broken', pricing: { input: 'free' } }] })).toEqual({
+      ok: false,
+      error: 'Pricing catalog contains no valid models',
+    });
+  });
+
+  it('applies the observed input, cache, and output mix to per-million rates', () => {
+    const result = parsePricingCatalog(catalogPayload);
+    if (!result.ok) throw new Error(result.error);
+    const estimate = estimateModelCost(result.catalog.models[0], usage);
+    expect(estimate.inputCostUsd).toBeCloseTo(31.25);
+    expect(estimate.cacheReadCostUsd).toBeCloseTo(300.7);
+    expect(estimate.outputCostUsd).toBeCloseTo(25);
+    expect(estimate.totalCostUsd).toBeCloseTo(356.95);
+    expect(estimate.blendedRateUsdPerM).toBeCloseTo(0.35695);
+  });
+
+  it('falls back to input pricing when a provider has no cache-specific rate', () => {
+    const result = parsePricingCatalog({
+      generated_at: '2026-07-08T00:00:00.000Z',
+      models: [{ id: 'model', org: 'org', provider: 'provider', pricing: { input: 2, output: 4 } }],
+    });
+    if (!result.ok) throw new Error(result.error);
+    expect(estimateModelCost(result.catalog.models[0], { ...usage, cacheReadTokens: 1_000_000 }).cacheReadCostUsd).toBe(2);
+  });
+
+  it('matches provider-qualified Pi model IDs to canonical TokenWatch routes', () => {
+    const models = [
+      { ...catalogPayload.models[0], id: 'kimi-k2.7-code', name: 'Kimi-K2.7-Code', provider: 'makora' },
+      { ...catalogPayload.models[0], id: 'glm-5.2-nvfp4', name: 'GLM-5.2-NVFP4', provider: 'makora' },
+      { ...catalogPayload.models[0], id: 'kimi-k2.7-code', name: 'Kimi-K2.7-Code', provider: 'other' },
+    ];
+    const result = parsePricingCatalog({ generated_at: '', models });
+    if (!result.ok) throw new Error(result.error);
+
+    expect(findPricingModel(result.catalog.models, 'makora', 'moonshotai/Kimi-K2.7-Code')?.id).toBe('kimi-k2.7-code');
+    expect(findPricingModel(result.catalog.models, 'MAKORA', 'zai-org/GLM-5.2-NVFP4')?.id).toBe('glm-5.2-nvfp4');
+    expect(findPricingModel(result.catalog.models, 'missing', 'moonshotai/Kimi-K2.7-Code')).toBeNull();
+  });
+
+  it('resolves bridge providers through explicit families and reports match provenance', () => {
+    const models = [
+      { ...catalogPayload.models[0], id: 'anthropic/claude-opus-5', name: 'Claude Opus 5', org: 'anthropic', provider: 'anthropic' },
+      { ...catalogPayload.models[0], id: 'anthropic/claude-opus-5', name: 'Claude Opus 5', org: 'anthropic', provider: 'amazon' },
+    ];
+    const result = parsePricingCatalog({ generated_at: '', models });
+    if (!result.ok) throw new Error(result.error);
+
+    expect(resolvePricingModel(result.catalog.models, 'claude-bridge', 'claude-opus-5')).toMatchObject({
+      strategy: 'provider-alias',
+      canonicalProvider: 'anthropic',
+      model: { id: 'anthropic/claude-opus-5', provider: 'anthropic' },
+    });
+    expect(resolvePricingModel(result.catalog.models, 'custom-proxy', 'anthropic/claude-opus-5')).toMatchObject({
+      strategy: 'model-family',
+      canonicalProvider: 'anthropic',
+    });
+    expect(resolvePricingModel(result.catalog.models, 'custom-proxy', 'unrelated-model')).toBeNull();
+  });
+
+  it('parses and resolves TokenWatch performance through the shared pricing route match', () => {
+    const pricing = parsePricingCatalog({
+      generated_at: '',
+      models: [{
+        ...catalogPayload.models[1],
+        id: 'anthropic/claude-opus-5',
+        name: 'Claude Opus 5',
+        provider: 'anthropic',
+      }],
+    });
+    const performance = parsePerformanceCatalog({
+      _meta: { generated_at: '2026-07-28T17:24:16.845Z' },
+      'claude-opus-5|anthropic': {
+        latency: { p50: 3737, p75: 4770.5, p90: 5681.4, p99: 9289.62 },
+        throughput: { p50: 59, p75: 73, p90: 83, p99: 109 },
+      },
+      broken: { throughput: { p50: 'fast' } },
+    });
+    if (!pricing.ok) throw new Error(pricing.error);
+    if (!performance.ok) throw new Error(performance.error);
+
+    expect(performance.catalog.generatedAt).toBe('2026-07-28T17:24:16.845Z');
+    expect(Object.keys(performance.catalog.records)).toEqual(['claude-opus-5|anthropic']);
+    expect(findModelPerformance(performance.catalog, pricing.catalog.models[0])).toMatchObject({
+      latency: { p50: 3737 },
+      throughput: { p50: 59 },
+    });
+    expect(findPricingPerformance(
+      performance.catalog,
+      pricing.catalog.models,
+      'claude-bridge',
+      'claude-opus-5',
+    )).toMatchObject({
+      pricingMatch: { strategy: 'provider-alias', canonicalProvider: 'anthropic' },
+      performance: {
+        latency: { p50: 3737 },
+        throughput: { p50: 59 },
+      },
+    });
+    expect(findPricingPerformance(
+      performance.catalog,
+      pricing.catalog.models,
+      'custom-proxy',
+      'unknown-model',
+    )).toBeNull();
+  });
+
+  it('rejects a TokenWatch performance response with no valid route records', () => {
+    expect(parsePerformanceCatalog({ _meta: { generated_at: '' }, broken: true })).toEqual({
+      ok: false,
+      error: 'Performance catalog contains no valid route records',
+    });
+  });
+
+  it('ranks alternatives by projected cost and reports savings against observed cost', () => {
+    const result = parsePricingCatalog(catalogPayload);
+    if (!result.ok) throw new Error(result.error);
+    const rows = compareModelPricing(result.catalog.models, usage, 500);
+    expect(rows.map((row) => row.model.id)).toEqual(['google/gemini-test', 'anthropic/claude-test']);
+    expect(rows[0].savingsUsd).toBeCloseTo(143.05);
+    expect(rows[0].savingsPct).toBeCloseTo(28.61, 1);
+  });
+});

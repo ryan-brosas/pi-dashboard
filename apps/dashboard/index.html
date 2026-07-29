@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" class="">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="author" href="https://ryanjosebrosas.dev/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pi-tps by Ryan Jose Brosas — Telemetry Inspector</title>
+    <meta name="author" content="Ryan Jose Brosas" />
+    <meta name="description" content="Inspect pi telemetry JSONL files. Analyze LLM tokens-per-second, timing, cache behavior, and routing performance." />
+    <script>
+      // Inline script to prevent flash of wrong theme. Dark is default.
+      (function() {
+        var stored = localStorage.getItem('theme');
+        var prefersLight = !window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var isLight = stored === 'light' || (!stored && prefersLight);
+        if (isLight) {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

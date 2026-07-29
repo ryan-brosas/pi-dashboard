@@ -1,0 +1,64 @@
+{
+  "name": "pi-tps-monorepo",
+  "version": "2.0.1",
+  "private": true,
+  "description": "Local and hosted usage, cost, and performance observability for pi",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "telemetry",
+    "dashboard"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Ryan Jose Brosas",
+    "url": "https://ryanjosebrosas.dev/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryan-brosas/pi-dashboard.git"
+  },
+  "homepage": "https://github.com/ryan-brosas/pi-dashboard#readme",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @pi-tps/dashboard dev",
+    "build": "pnpm --filter pi-tps-relay build && pnpm --filter @pi-tps/dashboard build",
+    "package:vps": "pnpm build && node apps/dashboard/scripts/package-vps-bundle.mjs",
+    "typecheck": "tsc -b",
+    "test": "vitest run && pnpm test:distribution",
+    "test:watch": "vitest",
+    "test:distribution": "node apps/collector/scripts/verify-distribution.mjs",
+    "lint": "eslint .",
+    "export-metrics": "pnpm --filter pi-tps-relay exec tsx src/export-metrics.ts",
+    "precommit": "pnpm typecheck && pnpm test",
+    "preview": "pnpm --filter @pi-tps/dashboard preview"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "25.9.1",
+    "@vitest/ui": "^4.1.7",
+    "esbuild": "^0.25.12",
+    "eslint": "10.4.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.2",
+    "globals": "17.6.0",
+    "tsx": "4.20.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.59.4",
+    "vitest": "^4.1.7"
+  },
+  "packageManager": "pnpm@11.6.0",
+  "pi": {
+    "extensions": [
+      "./apps/collector/src/extension.ts"
+    ]
+  },
+  "overrides": {
+    "brace-expansion": "5.0.6",
+    "next": "16.3.0-canary.24",
+    "postcss": "8.5.15"
+  }
+}

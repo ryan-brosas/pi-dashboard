@@ -1,0 +1,1345 @@
+import { runQuery } from './duckdb';
+import type { QueryResult } from './duckdb';
+
+/** Simple single-quote SQL escape. All query strings originate from user-uploaded JSONL, all in-memory WASM. */
+function escSql(s: string): string {
+  return s.replace(/'/g, "''");
+}
+
+/**
+ * Build a WHERE clause fragment from optional session and model filters.
+ * Returns the full WHERE clause including the WHERE keyword, or '' if no filters.
+ * If `prefix` is provided, it's used instead of 'WHERE' (e.g. 'AND' for subclauses).
+ */
+function buildWhere(
+  sessionFilter?: string | null,
+  modelFilter?: string | null,
+): string {
+  const conds: string[] = [];
+  if (sessionFilter) conds.push(`session_id = '${escSql(sessionFilter)}'`);
+  if (modelFilter) conds.push(`model_id = '${escSql(modelFilter)}'`);
+  if (conds.length === 0) return 'WHERE 1=1';
+  return `WHERE 1=1 AND ${conds.join(' AND ')}`;
+}
+
+function col(results: QueryResult, row: number, colName: string): unknown {
+  const idx = results.columns.indexOf(colName);
+  if (idx === -1) return undefined;
+  return results.rows[row]?.[idx];
+}
+
+function str(results: QueryResult, row: number, colName: string): string {
+  return (col(results, row, colName) as string) ?? '';
+}
+
+function num(results: QueryResult, row: number, colName: string): number {
+  const v = col(results, row, colName);
+  if (v == null) return 0;
+  return Number(v);
+}
+
+function maybeNum(results: QueryResult, row: number, colName: string): number | null {
+  const v = col(results, row, colName);
+  if (v == null) return null;
+  return Number(v);
+}
+
+export interface ScatterPoint {
+  id: string;
+  sessionId: string;
+  timestamp: string;
+  tokensTotal: number;
+  ttftMs: number;
+  totalMs: number;
+  cacheRatio: number;
+  newRatio: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  effectiveTps: number;
+  wallTps: number;
+  stallCount: number;
+  stallMs: number;
+  category: 'fast' | 'normal' | 'slow' | 'anomaly';
+  energyJoules: number | null;
+  energyCostUsd: number | null;
+}
+
+export interface TimingBucketRow {
+  range: string;
+  label: string;
+  count: number;
+  avgTtft: number;
+  avgTotal: number;
+  avgTps: number;
+  avgWallTps: number;
+  avgTpsLoss: number;
+  totalTokens: number;
+  /** Volume-weighted blended $/M-tokens for the bucket: sum(effective cost) / (sum(tokens)/1e6). null when no cost data in the bucket. */
+  blendedRateUsdPerM: number | null;
+  /** Per-bucket envelope (per-turn max/min within the bucket). Plotted as a faint band behind the blended avg so individual spike turns (e.g. one $2.37/M call averaged into a $1.16/M bucket) stay visible. null when the bucket has no usable per-turn rate. */
+  peakRateUsdPerM: number | null;
+  troughRateUsdPerM: number | null;
+  peakTtft: number;
+  troughTtft: number;
+  peakTotal: number;
+  troughTotal: number;
+  peakTps: number;
+  troughTps: number;
+  /** Per-turn max/min instantaneous GPU power across the bucket's NeuralWatt turns (W). null when no energy data in the bucket. */
+  peakPowerWatts: number | null;
+  troughPowerWatts: number | null;
+  /** Per-turn max/min joules-per-million-tokens within the bucket (energy_joules / tokens_total/1e6). null when no energy data in the bucket. */
+  peakJoulesPerM: number | null;
+  troughJoulesPerM: number | null;
+  /** Sum of the effective cost across the bucket ($): COALESCE(energy_cost_usd, cost_total) summed. The numerator of blendedRateUsdPerM; also lets the chart derive a session-wide blended rate by summing across buckets. */
+  effectiveCostTotal: number | null;
+  /** Sum of raw energy joules across the bucket (NeuralWatt turns only). null when no energy data. */
+  totalEnergyJoules: number | null;
+  /** Sum of energy-backed cost ($) across the bucket: SUM(energy_cost_usd) for NeuralWatt turns. null when no energy data. */
+  totalEnergyCost: number | null;
+  /** Sum of list-price token cost ($) across the bucket: SUM(cost_total). null when no list-price cost. */
+  totalListCost: number | null;
+  /** Mean instantaneous GPU power across the bucket's NeuralWatt turns (W). Live spike signal — surges when the model does more work per unit time. null when no energy data. */
+  avgPowerWatts: number | null;
+  /** Whether the attribution cap kicked in for any energy turn in the bucket. null when no energy data. */
+  ratioWasCapped: boolean | null;
+  /** Typical share of the node's draw the bucket's turns were billed for. null when no energy data. */
+  attributionRatio: number | null;
+  /** Dominant electricity grid id for the bucket's NeuralWatt turns (e.g. "US-MIDA-PJM"). null when no energy data with a grid id. */
+  dominantGridId: string | null;
+}
+
+export interface TokenCompositionRow {
+  index: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  total: number;
+  ttft: number;
+}
+
+export interface CacheOverTimeInterval {
+  label: string;
+  hitRate: number;
+}
+
+export interface CacheOverallSlice {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface TtftBinRow {
+  label: string;
+  count: number;
+  pct: number;
+  barPct: number;
+  color: string;
+}
+
+export interface ThresholdStat {
+  threshold: number;
+  above: { count: number; avgTtft: number; avgTps: number; avgCacheRatio: number };
+  below: { count: number; avgTtft: number; avgTps: number; avgCacheRatio: number };
+  ttftDelta: number;
+}
+
+export const MAX_ANOMALY_ROWS = 50;
+
+export interface AnomalyRow {
+  eventId: string;
+  sessionId: string;
+  type: 'cache-drop' | 'slow-zone' | 'high-new-input' | 'stall-spike';
+  index: number;
+  description: string;
+  severity: 'high' | 'medium' | 'low';
+  tokensTotal: number;
+  energyCostUsd: number | null;
+  tokenCostUsd: number | null;
+  totalCount?: number;
+}
+
+export type TimelineEventRow =
+  | {
+      id: string;
+      sessionId: string;
+      timestamp: string;
+      type: 'tps';
+      provider: string;
+      modelId: string;
+      tokensInput: number;
+      tokensOutput: number;
+      tokensCacheRead: number;
+      tokensCacheWrite: number;
+      tokensTotal: number;
+      ttftMs: number;
+      totalMs: number;
+      generationMs: number;
+      stallMs: number;
+      stallCount: number;
+      effectiveTps: number;
+      wallTps: number;
+      tps: number;
+      costTotal: number | null;
+      energyJoules: number | null;
+      energyCostUsd: number | null;
+      /** pi-tps' precomputed blended $/M (effectiveCost / (tokens.total/1e6)). null on older sessions. */
+      rateUsdPerMTokens: number | null;
+      /** A-else-B: rateUsdPerMTokens when present, else derived from effective cost + tokens. null only when no cost/zero tokens. */
+      rateUsdPerMTokensEffective: number | null;
+      cacheRatio: number;
+    }
+  | {
+      id: string;
+      sessionId: string;
+      timestamp: string;
+      type: 'model_change';
+      provider: string;
+      modelId: string;
+    }
+  | {
+      id: string;
+      sessionId: string;
+      timestamp: string;
+      type: 'rewind';
+      rewindV: number;
+    }
+  | {
+      id: string;
+      sessionId: string;
+      timestamp: string;
+      type: 'branch_summary';
+      fromId: string;
+      summary: string;
+    };
+
+export function timelineEventKey(event: { sessionId: string; id: string }): string {
+  return `${event.sessionId}:${event.id}`;
+}
+
+export interface SessionSummaryRow {
+  sessionId: string;
+  fileName: string | null;
+  totalCalls: number;
+  totalTokens: number;
+  totalOutput: number;
+  wallClockMs: number;
+  avgTps: number;
+  weightedTps: number;
+  avgTtft: number;
+  totalCostUsd: number | null;
+  totalEnergyJoules: number | null;
+  model: string;
+  provider: string;
+  stalledCalls: number;
+  timeRangeStart: string;
+  timeRangeEnd: string;
+}
+
+export interface ModelInfoRow {
+  modelId: string;
+  provider: string;
+  callCount: number;
+  totalTokens: number;
+  avgTps: number | null;
+  maxTps: number | null;
+  avgTtftMs: number | null;
+  energyCostUsd: number | null;
+  energyJoules: number | null;
+  blendedCostUsd: number | null;
+  costSource: 'neuralwatt' | 'tps' | null;
+}
+
+export interface ConversationSummaryRow {
+  totalCalls: number;
+  totalTokens: number;
+  totalInput: number;
+  totalOutput: number;
+  totalCacheRead: number;
+  totalCacheWrite: number;
+  wallClockMs: number;
+  totalTimeMs: number;
+  totalGenerationMs: number;
+  totalStallMs: number;
+  totalStallCount: number;
+  avgTps: number;
+  weightedTps: number;
+  avgWallTps: number;
+  weightedWallTps: number;
+  tpsLoss: number;
+  weightedTpsLoss: number;
+  avgTtft: number;
+  ttftP50: number;
+  ttftP75: number;
+  ttftP90: number;
+  ttftP99: number;
+  totalCostUsd: number | null;
+  costSource: 'neuralwatt' | 'tps' | 'both' | null;
+  energyCostUsd: number | null;
+  totalEnergyJoules: number | null;
+  avgTokensPerCall: number;
+  stalledCalls: number;
+  cachedCalls: number;
+  fastCalls: number;
+  minTtft: number;
+  maxTtft: number;
+  model: string;
+  provider: string;
+  timeRangeStart: string;
+  timeRangeEnd: string;
+  rewindCount: number;
+  modelChangeCount: number;
+}
+
+export interface DataThresholdsRow {
+  cacheThreshold: number;
+  lowContext: number;
+  slowTtft: number;
+  fastTtft: number;
+  highNewInputRatio: number;
+  anomalyInputThreshold: number;
+  cacheDropMinTotal: number;
+  cacheDropMinInput: number;
+  highInputRatio: number;
+  highInputSeverityToken: number;
+  stallCountThreshold: number;
+  stallMsSeverity: number;
+}
+
+/**
+ * Main summary — replaces computeSummary() entirely with SQL.
+ * Uses the enriched tps_paired view for cost attribution.
+ */
+export async function querySummary(sessionFilter?: string | null, modelFilter?: string | null): Promise<ConversationSummaryRow | null> {
+  const where = buildWhere(sessionFilter, modelFilter);
+
+  const sql = `
+    WITH tps AS (
+      SELECT * FROM tps_paired ${where}
+    ),
+    aggregated AS (
+      SELECT
+        count(*)                                    AS total_calls,
+        COALESCE(sum(tokens_input), 0)              AS total_input,
+        COALESCE(sum(tokens_output), 0)             AS total_output,
+        COALESCE(sum(tokens_cache_read), 0)         AS total_cache_read,
+        COALESCE(sum(tokens_cache_write), 0)        AS total_cache_write,
+        COALESCE(sum(tokens_input + tokens_output + tokens_cache_read + tokens_cache_write), 0) AS total_tokens,
+        COALESCE(sum(total_ms), 0)                  AS total_time_ms,
+        COALESCE(sum(generation_ms), 0)             AS total_generation_ms,
+        COALESCE(sum(stall_ms), 0)                  AS total_stall_ms,
+        COALESCE(sum(stall_count), 0)              AS total_stall_count,
+        -- Weighted TPS: total output / total effective time (seconds)
+        CASE WHEN sum(effective_ms) > 0
+          THEN sum(tokens_output) / (sum(effective_ms) / 1000.0)
+          ELSE 0 END                                AS weighted_tps,
+        -- Weighted wall TPS
+        CASE WHEN sum(total_ms) > 0
+          THEN sum(tokens_output) / (sum(total_ms) / 1000.0)
+          ELSE 0 END                                AS weighted_wall_tps,
+        -- Simple average TPS
+        CASE WHEN count(*) > 0
+          THEN avg(effective_tps)
+          ELSE 0 END                                AS avg_tps,
+        -- Simple average wall TPS
+        CASE WHEN count(*) > 0
+          THEN avg(wall_tps)
+          ELSE 0 END                                AS avg_wall_tps,
+        -- TTFT stats
+        avg(ttft_ms)                                AS avg_ttft,
+        min(ttft_ms)                                AS min_ttft,
+        max(ttft_ms)                                AS max_ttft,
+        -- Wall clock
+        CASE WHEN count(*) > 0
+          THEN EXTRACT(EPOCH FROM (max(timestamp::timestamp) - min(timestamp::timestamp))) * 1000
+          ELSE 0 END                                AS wall_clock_ms,
+        -- Percentiles
+        percentile_cont(0.50) WITHIN GROUP (ORDER BY ttft_ms) AS ttft_p50,
+        percentile_cont(0.75) WITHIN GROUP (ORDER BY ttft_ms) AS ttft_p75,
+        percentile_cont(0.90) WITHIN GROUP (ORDER BY ttft_ms) AS ttft_p90,
+        percentile_cont(0.99) WITHIN GROUP (ORDER BY ttft_ms) AS ttft_p99,
+        -- Counts
+        count(*) FILTER (WHERE stall_count > 0 OR stall_ms > 0) AS stalled_calls,
+        count(*) FILTER (WHERE tokens_cache_read > 0 OR tokens_cache_write > 0) AS cached_calls,
+        count(*) FILTER (WHERE ttft_ms < 3000)               AS fast_calls,
+        -- Last model (using arg_max pattern)
+        (array_agg(model_id ORDER BY timestamp DESC))[1] AS last_model,
+        (array_agg(provider ORDER BY timestamp DESC))[1] AS last_provider,
+        -- Time range
+        min(timestamp)                              AS time_range_start,
+        max(timestamp)                              AS time_range_end,
+        -- Provider token-pricing cost totals
+        sum(CASE WHEN cost_total IS NOT NULL THEN cost_total ELSE 0 END) AS total_token_cost,
+        max(CASE WHEN cost_total IS NOT NULL THEN 1 ELSE 0 END) AS has_token_cost
+      FROM tps
+    )
+    SELECT
+      total_calls,
+      total_tokens,
+      total_input,
+      total_output,
+      total_cache_read,
+      total_cache_write,
+      wall_clock_ms,
+      total_time_ms,
+      total_generation_ms,
+      total_stall_ms,
+      total_stall_count,
+      avg_tps,
+      weighted_tps,
+      avg_wall_tps,
+      weighted_wall_tps,
+      CASE WHEN avg_tps > 0 THEN ((avg_tps - avg_wall_tps) / avg_tps) * 100 ELSE 0 END AS tps_loss,
+      CASE WHEN weighted_tps > 0 THEN ((weighted_tps - weighted_wall_tps) / weighted_tps) * 100 ELSE 0 END AS weighted_tps_loss,
+      avg_ttft,
+      ttft_p50,
+      ttft_p75,
+      ttft_p90,
+      ttft_p99,
+      CASE WHEN has_token_cost > 0 THEN total_token_cost ELSE NULL END AS total_cost_usd,
+      CASE WHEN has_token_cost > 0 THEN 'tps' ELSE NULL END AS cost_source,
+      NULL AS energy_cost_usd,
+      NULL AS total_energy_joules,
+      CASE WHEN total_calls > 0 THEN total_tokens::double / total_calls ELSE 0 END AS avg_tokens_per_call,
+      stalled_calls,
+      cached_calls,
+      fast_calls,
+      min_ttft,
+      max_ttft,
+      last_model         AS model,
+      last_provider      AS provider,
+      time_range_start,
+      time_range_end,
+      0 AS rewind_count,
+      0 AS model_change_count
+    FROM aggregated
+  `;
+
+  const result = await runQuery(sql);
+  if (result.rowCount === 0) return null;
+
+  const r = 0;
+  return {
+    totalCalls: num(result, r, 'total_calls'),
+    totalTokens: num(result, r, 'total_tokens'),
+    totalInput: num(result, r, 'total_input'),
+    totalOutput: num(result, r, 'total_output'),
+    totalCacheRead: num(result, r, 'total_cache_read'),
+    totalCacheWrite: num(result, r, 'total_cache_write'),
+    wallClockMs: num(result, r, 'wall_clock_ms'),
+    totalTimeMs: num(result, r, 'total_time_ms'),
+    totalGenerationMs: num(result, r, 'total_generation_ms'),
+    totalStallMs: num(result, r, 'total_stall_ms'),
+    totalStallCount: num(result, r, 'total_stall_count'),
+    avgTps: num(result, r, 'avg_tps'),
+    weightedTps: num(result, r, 'weighted_tps'),
+    avgWallTps: num(result, r, 'avg_wall_tps'),
+    weightedWallTps: num(result, r, 'weighted_wall_tps'),
+    tpsLoss: num(result, r, 'tps_loss'),
+    weightedTpsLoss: num(result, r, 'weighted_tps_loss'),
+    avgTtft: num(result, r, 'avg_ttft'),
+    ttftP50: num(result, r, 'ttft_p50'),
+    ttftP75: num(result, r, 'ttft_p75'),
+    ttftP90: num(result, r, 'ttft_p90'),
+    ttftP99: num(result, r, 'ttft_p99'),
+    totalCostUsd: maybeNum(result, r, 'total_cost_usd'),
+    costSource: col(result, r, 'cost_source') as ConversationSummaryRow['costSource'],
+    energyCostUsd: maybeNum(result, r, 'energy_cost_usd'),
+    totalEnergyJoules: maybeNum(result, r, 'total_energy_joules'),
+    avgTokensPerCall: num(result, r, 'avg_tokens_per_call'),
+    stalledCalls: num(result, r, 'stalled_calls'),
+    cachedCalls: num(result, r, 'cached_calls'),
+    fastCalls: num(result, r, 'fast_calls'),
+    minTtft: num(result, r, 'min_ttft'),
+    maxTtft: num(result, r, 'max_ttft'),
+    model: str(result, r, 'model'),
+    provider: str(result, r, 'provider'),
+    timeRangeStart: str(result, r, 'time_range_start'),
+    timeRangeEnd: str(result, r, 'time_range_end'),
+    rewindCount: num(result, r, 'rewind_count'),
+    modelChangeCount: num(result, r, 'model_change_count'),
+  };
+}
+
+/**
+ * Per-model breakdown from the tps_paired view.
+ */
+export async function queryModels(sessionFilter?: string | null, modelFilter?: string | null): Promise<ModelInfoRow[]> {
+  const where = buildWhere(sessionFilter, modelFilter);
+  const sql = `
+    SELECT
+      model_id,
+      provider,
+      count(*)                                      AS call_count,
+      sum(tokens_total)                              AS total_tokens,
+      avg(effective_tps)                             AS avg_tps,
+      max(effective_tps)                             AS max_tps,
+      avg(ttft_ms)                                   AS avg_ttft_ms,
+      sum(cost_total)                                AS blended_cost_usd,
+      max(CASE WHEN cost_total IS NOT NULL THEN 1 ELSE 0 END) AS has_token_cost
+    FROM tps_paired
+    ${where}
+    GROUP BY model_id, provider
+    ORDER BY blended_cost_usd DESC
+  `;
+
+  const result = await runQuery(sql);
+  const rows: ModelInfoRow[] = [];
+  for (let i = 0; i < result.rowCount; i++) {
+    const hasToken = num(result, i, 'has_token_cost') > 0;
+    rows.push({
+      modelId: str(result, i, 'model_id'),
+      provider: str(result, i, 'provider'),
+      callCount: num(result, i, 'call_count'),
+      totalTokens: num(result, i, 'total_tokens'),
+      avgTps: maybeNum(result, i, 'avg_tps'),
+      maxTps: maybeNum(result, i, 'max_tps'),
+      avgTtftMs: maybeNum(result, i, 'avg_ttft_ms'),
+      energyCostUsd: null,
+      energyJoules: null,
+      blendedCostUsd: hasToken ? num(result, i, 'blended_cost_usd') : null,
+      costSource: hasToken ? 'tps' : null,
+    });
+  }
+  return rows;
+}
+
+export async function queryScatter(
+  thresholds: DataThresholdsRow,
+  sessionFilter?: string | null,
+  modelFilter?: string | null,
+): Promise<ScatterPoint[]> {
+  const where = buildWhere(sessionFilter, modelFilter);
+  const sql = `
+    SELECT
+      id,
+      session_id,
+      timestamp,
+      tokens_total,
+      ttft_ms,
+      total_ms,
+      tokens_input,
+      tokens_output,
+      tokens_cache_read,
+      effective_tps,
+      wall_tps,
+      stall_count,
+      stall_ms,
+      energy_joules,
+      energy_cost_usd,
+      CASE
+        WHEN tokens_input > ${thresholds.anomalyInputThreshold} THEN 'anomaly'
+        WHEN ttft_ms > ${thresholds.slowTtft} AND tokens_total < ${thresholds.cacheThreshold} THEN 'slow'
+        WHEN tokens_total > ${thresholds.cacheThreshold} AND ttft_ms < ${thresholds.fastTtft}
+             AND tokens_input::double / NULLIF(tokens_total, 0) < ${thresholds.highNewInputRatio} THEN 'fast'
+        ELSE 'normal'
+      END AS category
+    FROM tps_paired
+    ${where}
+    ORDER BY timestamp
+  `;
+
+  const result = await runQuery(sql);
+  const points: ScatterPoint[] = [];
+  for (let i = 0; i < result.rowCount; i++) {
+    const tokensTotal = num(result, i, 'tokens_total');
+    points.push({
+      id: str(result, i, 'id'),
+      sessionId: str(result, i, 'session_id'),
+      timestamp: str(result, i, 'timestamp'),
+      tokensTotal,
+      ttftMs: num(result, i, 'ttft_ms'),
+      totalMs: num(result, i, 'total_ms'),
+      cacheRatio: tokensTotal > 0 ? num(result, i, 'tokens_cache_read') / tokensTotal : 0,
+      newRatio: tokensTotal > 0 ? num(result, i, 'tokens_input') / tokensTotal : 0,
+      input: num(result, i, 'tokens_input'),
+      output: num(result, i, 'tokens_output'),
+      cacheRead: num(result, i, 'tokens_cache_read'),
+      effectiveTps: num(result, i, 'effective_tps'),
+      wallTps: num(result, i, 'wall_tps'),
+      stallCount: num(result, i, 'stall_count'),
+      stallMs: num(result, i, 'stall_ms'),
+      category: col(result, i, 'category') as ScatterPoint['category'],
+      energyJoules: maybeNum(result, i, 'energy_joules'),
+      energyCostUsd: maybeNum(result, i, 'energy_cost_usd'),
+    });
+  }
+  return points;
+}
+
+/**
+ * Timing buckets for the timeline chart — replaces computeTimingBuckets().
+ */
+export async function queryTimingBuckets(sessionFilter?: string | null, modelFilter?: string | null): Promise<TimingBucketRow[]> {
+  const where = buildWhere(sessionFilter, modelFilter);
+  const sql = `
+    WITH ranked AS (
+      SELECT *,
+        ntile(20) OVER (ORDER BY timestamp) AS bucket
+      FROM tps_paired
+      ${where}
+    )
+    SELECT
+      min(timestamp)::varchar || '-' || max(timestamp)::varchar AS range,
+      strftime(min(timestamp)::timestamp, '%H:%M:%S')           AS label,
+      count(*)                                                  AS count,
+      round(avg(ttft_ms))                                       AS avg_ttft,
+      round(avg(total_ms))                                      AS avg_total,
+      round(avg(effective_tps) * 10) / 10.0                    AS avg_tps,
+      round(avg(wall_tps) * 10) / 10.0                          AS avg_wall_tps,
+      CASE WHEN avg(effective_tps) > 0
+        THEN round(((avg(effective_tps) - avg(wall_tps)) / avg(effective_tps)) * 1000) / 10.0
+        ELSE 0 END                                              AS avg_tps_loss,
+      sum(tokens_total)                                         AS total_tokens,
+      -- Volume-weighted blended $/M for the bucket. The effective cost
+      -- (Neuralwatt billed cost when present, else list-price cost_total)
+      -- is summed across the bucket, then divided by total scaled tokens.
+      -- Matches pi-tps' per-turn effectiveCost definition, so it agrees
+      -- with the stored rate_usd_per_m_tokens for turns that have it.
+      -- null when the bucket has no usable cost or zero tokens.
+      sum(energy_joules)                                        AS total_energy_joules,
+      sum(energy_cost_usd)                                      AS total_energy_cost,
+      sum(COALESCE(cost_total, 0))                              AS total_list_cost,
+      -- Live GPU power signal per bucket (mean instantaneous draw across
+      -- the bucket's NeuralWatt turns). Spikes here = the model doing more
+      -- work per unit time (bigger batches, longer decode, heavier attention).
+      avg(avg_power_watts)                                      AS avg_power_watts,
+      -- Attribution: how much of the node's real draw this turn was billed
+      -- for. ratio_was_capped means the cap kicked in (turn touched the full
+      -- node but was only billed for the attribution_ratio slice). Flat per
+      -- session usually, so surfaced as context rather than a multiplier.
+      max(ratio_was_capped)                                     AS ratio_was_capped,
+      avg(attribution_ratio)                                    AS attribution_ratio,
+      -- Dominant electricity grid for the bucket's NeuralWatt turns
+      -- (the grid_id accounting for the most joules). Used by the
+      -- cost-breakdown panel to label which grid priced the bucket.
+      -- "" when no energy rows carry a grid_id.
+      COALESCE(
+        (SELECT grid_id FROM (
+          SELECT grid_id, sum(energy_joules) AS j
+          FROM ranked e2 WHERE e2.bucket = ranked.bucket
+            AND energy_joules IS NOT NULL AND grid_id IS NOT NULL
+          GROUP BY grid_id ORDER BY j DESC LIMIT 1
+        ) sub),
+        ''
+      )                                                          AS dominant_grid_id,
+      sum(COALESCE(energy_cost_usd, cost_total))                  AS effective_cost_total,
+      CASE WHEN sum(tokens_total) > 0
+        THEN round(
+          sum(COALESCE(energy_cost_usd, cost_total))
+            / nullif(sum(tokens_total) / 1000000.0, 0)
+          * 100
+        ) / 100.0
+        ELSE NULL END                                           AS blended_rate_usd_per_m,
+      -- Per-bucket envelope: per-turn max/min within the bucket. Drawn as a
+      -- faint band behind the blended avg so a single spike turn (e.g. one
+      -- $2.37/M call) stays visible instead of being averaged away. min/max
+      -- skip nulls, so cost peaks/troughs are null exactly when the blend is.
+      max(ttft_ms)                                    AS peak_ttft,
+      min(ttft_ms)                                    AS trough_ttft,
+      max(total_ms)                                   AS peak_total,
+      min(total_ms)                                   AS trough_total,
+      max(effective_tps)                              AS peak_tps,
+      min(effective_tps)                              AS trough_tps,
+      max(rate_usd_per_m_tokens_effective)            AS peak_rate_usd_per_m,
+      min(rate_usd_per_m_tokens_effective)            AS trough_rate_usd_per_m,
+      -- Per-turn power/joules envelope for the cost-breakdown panel. Power ×
+      -- and Joules × there are bucket blends; these let the panel render a
+      -- trough–peak range so individual spike turns stay visible just like
+      -- the rate envelope does on the main chart.
+      max(avg_power_watts)                            AS peak_power_watts,
+      min(avg_power_watts)                            AS trough_power_watts,
+      max(energy_joules / nullif(tokens_total / 1000000.0, 0)) AS peak_joules_per_m,
+      min(energy_joules / nullif(tokens_total / 1000000.0, 0)) AS trough_joules_per_m
+    FROM ranked
+    GROUP BY bucket
+    ORDER BY min(timestamp)
+  `;
+
+  const result = await runQuery(sql);
+  const buckets: TimingBucketRow[] = [];
+  for (let i = 0; i < result.rowCount; i++) {
+    buckets.push({
+      range: str(result, i, 'range'),
+      label: str(result, i, 'label'),
+      count: num(result, i, 'count'),
+      avgTtft: num(result, i, 'avg_ttft'),
+      avgTotal: num(result, i, 'avg_total'),
+      avgTps: num(result, i, 'avg_tps'),
+      avgWallTps: num(result, i, 'avg_wall_tps'),
+      avgTpsLoss: num(result, i, 'avg_tps_loss'),
+      totalTokens: num(result, i, 'total_tokens'),
+      blendedRateUsdPerM: maybeNum(result, i, 'blended_rate_usd_per_m'),
+      effectiveCostTotal: maybeNum(result, i, 'effective_cost_total'),
+      totalEnergyJoules: maybeNum(result, i, 'total_energy_joules'),
+      totalEnergyCost: maybeNum(result, i, 'total_energy_cost'),
+      totalListCost: maybeNum(result, i, 'total_list_cost'),
+      avgPowerWatts: maybeNum(result, i, 'avg_power_watts'),
+      ratioWasCapped: (col(result, i, 'ratio_was_capped') as boolean | null),
+      attributionRatio: maybeNum(result, i, 'attribution_ratio'),
+      dominantGridId: str(result, i, 'dominant_grid_id') || null,
+      peakRateUsdPerM: maybeNum(result, i, 'peak_rate_usd_per_m'),
+      troughRateUsdPerM: maybeNum(result, i, 'trough_rate_usd_per_m'),
+      peakPowerWatts: maybeNum(result, i, 'peak_power_watts'),
+      troughPowerWatts: maybeNum(result, i, 'trough_power_watts'),
+      peakJoulesPerM: maybeNum(result, i, 'peak_joules_per_m'),
+      troughJoulesPerM: maybeNum(result, i, 'trough_joules_per_m'),
+      peakTtft: num(result, i, 'peak_ttft'),
+      troughTtft: num(result, i, 'trough_ttft'),
+      peakTotal: num(result, i, 'peak_total'),
+      troughTotal: num(result, i, 'trough_total'),
+      peakTps: num(result, i, 'peak_tps'),
+      troughTps: num(result, i, 'trough_tps'),
+    });
+  }
+  return buckets;
+}
+
+/**
+ * Token composition for the stacked bar chart — last 30 requests.
+ */
+export async function queryTokenComposition(sessionFilter?: string | null, modelFilter?: string | null): Promise<TokenCompositionRow[]> {
+  const where = buildWhere(sessionFilter, modelFilter);
+  const sql = `
+    SELECT
+      tokens_input  AS input,
+      tokens_output AS output,
+      tokens_cache_read AS cache_read,
+      tokens_cache_write AS cache_write,
+      tokens_total  AS total,
+      ttft_ms       AS ttft
+    FROM tps_paired
+    ${where}
+    ORDER BY timestamp
+    LIMIT 30
+  `;
+
+  const result = await runQuery(sql);
+  const rows: TokenCompositionRow[] = [];
+  for (let i = 0; i < result.rowCount; i++) {
+    rows.push({
+      index: i + 1,
+      input: num(result, i, 'input'),
+      output: num(result, i, 'output'),
+      cacheRead: num(result, i, 'cache_read'),
+      cacheWrite: num(result, i, 'cache_write'),
+      total: num(result, i, 'total'),
+      ttft: num(result, i, 'ttft'),
+    });
+  }
+  return rows;
+}
+
+/**
+ * Cache efficiency data — overall pie + over-time bars.
+ */
+export async function queryCacheEfficiency(sessionFilter?: string | null, modelFilter?: string | null): Promise<{
+  overall: CacheOverallSlice[];
+  overTime: CacheOverTimeInterval[];
+  hitRate: number;
+}> {
+  const where = buildWhere(sessionFilter, modelFilter);
+
+  // Overall totals
+  const overallSql = `
+    SELECT
+      COALESCE(sum(tokens_cache_read), 0) AS cache_read,
+      COALESCE(sum(tokens_input), 0)      AS new_input,
+      COALESCE(sum(tokens_output), 0)      AS output
+    FROM tps_paired
+    ${where}
+  `;
+
+  const overallResult = await runQuery(overallSql);
+  const cacheRead = num(overallResult, 0, 'cache_read');
+  const newInput = num(overallResult, 0, 'new_input');
+  const output = num(overallResult, 0, 'output');
+  const total = cacheRead + newInput + output;
+  const hitRate = total > 0 ? (cacheRead / total) * 100 : 0;
+
+  const overall: CacheOverallSlice[] = [
+    { name: 'Cache Read', value: cacheRead, color: 'var(--chart-primary)' },
+    { name: 'New Input', value: newInput, color: 'var(--chart-secondary)' },
+    { name: 'Output', value: output, color: 'var(--chart-positive)' },
+  ];
+
+  const overTime: CacheOverTimeInterval[] = [];
+  const timeSql2 = `
+    WITH ranked AS (
+      SELECT *,
+        ntile(greatest(6, least(12, (SELECT ceiling(count(*) / 60.0) FROM tps_paired ${where})))) OVER (ORDER BY timestamp) AS bucket,
+        row_number() OVER (ORDER BY timestamp) AS rn
+      FROM tps_paired
+      ${where}
+    )
+    SELECT
+      min(rn)::varchar || '-' || max(rn)::varchar AS label,
+      round(CASE WHEN sum(tokens_total) > 0
+        THEN (sum(tokens_cache_read)::double / sum(tokens_total)) * 100
+        ELSE 0 END) AS hit_rate
+    FROM ranked
+    GROUP BY bucket
+    ORDER BY min(rn)
+  `;
+
+  const timeResult2 = await runQuery(timeSql2);
+  for (let i = 0; i < timeResult2.rowCount; i++) {
+    overTime.push({
+      label: str(timeResult2, i, 'label'),
+      hitRate: num(timeResult2, i, 'hit_rate'),
+    });
+  }
+
+  return { overall, overTime, hitRate };
+}
+
+/**
+ * TTFT distribution bins — replaces TimingDistribution's useMemo.
+ */
+export async function queryTtftDistribution(sessionFilter?: string | null, modelFilter?: string | null): Promise<{
+  bins: TtftBinRow[];
+  fastCount: number;
+  slowCount: number;
+  percentiles: { label: string; value: number }[];
+}> {
+  const where = buildWhere(sessionFilter, modelFilter);
+
+  // Bin counts
+  const binSql = `
+    SELECT
+      CASE
+        WHEN ttft_ms <= 1000 THEN '<1s'
+        WHEN ttft_ms <= 3000 THEN '1-3s'
+        WHEN ttft_ms <= 5000 THEN '3-5s'
+        WHEN ttft_ms <= 10000 THEN '5-10s'
+        WHEN ttft_ms <= 15000 THEN '10-15s'
+        WHEN ttft_ms <= 30000 THEN '15-30s'
+        ELSE '>30s'
+      END AS label,
+      CASE
+        WHEN ttft_ms <= 1000 THEN 0
+        WHEN ttft_ms <= 3000 THEN 1
+        WHEN ttft_ms <= 5000 THEN 2
+        WHEN ttft_ms <= 10000 THEN 3
+        WHEN ttft_ms <= 15000 THEN 4
+        WHEN ttft_ms <= 30000 THEN 5
+        ELSE 6
+      END AS bin_order,
+      count(*) AS cnt
+    FROM tps_paired
+    ${where}
+    GROUP BY label, bin_order
+    ORDER BY bin_order
+  `;
+
+  const binResult = await runQuery(binSql);
+  const colorMap = ['bg-moss', 'bg-moss/70', 'bg-accent', 'bg-accent/70', 'bg-amber', 'bg-ember/70', 'bg-ember'];
+  const bins: TtftBinRow[] = [];
+  let totalCount = 0;
+  const binCounts: number[] = [];
+
+  for (let i = 0; i < binResult.rowCount; i++) {
+    const c = num(binResult, i, 'cnt');
+    binCounts.push(c);
+    totalCount += c;
+  }
+
+  const maxCount = Math.max(...binCounts, 1);
+  for (let i = 0; i < binResult.rowCount; i++) {
+    const order = num(binResult, i, 'bin_order');
+    const c = binCounts[i];
+    bins.push({
+      label: str(binResult, i, 'label'),
+      count: c,
+      pct: totalCount > 0 ? (c / totalCount) * 100 : 0,
+      barPct: (c / maxCount) * 100,
+      color: colorMap[order] ?? 'bg-zinc-400',
+    });
+  }
+
+  // Percentiles
+  const pctSql = `
+    SELECT
+      percentile_cont(0.50) WITHIN GROUP (ORDER BY ttft_ms) AS p50,
+      percentile_cont(0.75) WITHIN GROUP (ORDER BY ttft_ms) AS p75,
+      percentile_cont(0.90) WITHIN GROUP (ORDER BY ttft_ms) AS p90,
+      percentile_cont(0.99) WITHIN GROUP (ORDER BY ttft_ms) AS p99
+    FROM tps_paired
+    ${where}
+  `;
+
+  const pctResult = await runQuery(pctSql);
+  const percentiles = [
+    { label: 'P50', value: num(pctResult, 0, 'p50') },
+    { label: 'P75', value: num(pctResult, 0, 'p75') },
+    { label: 'P90', value: num(pctResult, 0, 'p90') },
+    { label: 'P99', value: num(pctResult, 0, 'p99') },
+  ];
+
+  // Fast/slow counts
+  const countSql = `
+    SELECT
+      count(*) FILTER (WHERE ttft_ms < 3000) AS fast_count,
+      count(*) FILTER (WHERE ttft_ms > 15000) AS slow_count
+    FROM tps_paired
+    ${where}
+  `;
+  const countResult = await runQuery(countSql);
+  const fastCount = num(countResult, 0, 'fast_count');
+  const slowCount = num(countResult, 0, 'slow_count');
+  return { bins, fastCount, slowCount, percentiles };
+}
+
+/**
+ * Threshold crossing analysis — replaces ThresholdAnalysis useMemo.
+ */
+export async function queryThresholdCrossings(
+  thresholds: DataThresholdsRow,
+  sessionFilter?: string | null,
+  modelFilter?: string | null,
+): Promise<ThresholdStat[]> {
+  const where = buildWhere(sessionFilter, modelFilter);
+  const maxTokensSql = `SELECT COALESCE(max(tokens_total), 80000) AS max_tokens FROM tps_paired ${where}`;
+  const maxResult = await runQuery(maxTokensSql);
+  const maxTokens = num(maxResult, 0, 'max_tokens');
+
+  const displayThresholds = [
+    Math.round(thresholds.lowContext * 0.5 / 1000) * 1000,
+    thresholds.lowContext,
+    thresholds.cacheThreshold,
+    Math.round((thresholds.cacheThreshold + (maxTokens - thresholds.cacheThreshold) * 0.5) / 1000) * 1000,
+  ];
+
+  const queries = displayThresholds.map((threshold) => {
+    const sql = `
+      SELECT
+        count(*) FILTER (WHERE tokens_total >= ${threshold}) AS above_count,
+        count(*) FILTER (WHERE tokens_total < ${threshold})  AS below_count,
+        avg(ttft_ms) FILTER (WHERE tokens_total >= ${threshold}) AS above_avg_ttft,
+        avg(ttft_ms) FILTER (WHERE tokens_total < ${threshold})  AS below_avg_ttft,
+        avg(effective_tps) FILTER (WHERE tokens_total >= ${threshold}) AS above_avg_tps,
+        avg(effective_tps) FILTER (WHERE tokens_total < ${threshold})  AS below_avg_tps,
+        avg(tokens_cache_read::double / NULLIF(tokens_total, 0)) FILTER (WHERE tokens_total >= ${threshold}) AS above_avg_cache_ratio,
+        avg(tokens_cache_read::double / NULLIF(tokens_total, 0)) FILTER (WHERE tokens_total < ${threshold})  AS below_avg_cache_ratio
+      FROM tps_paired
+      ${where}
+    `;
+    return runQuery(sql).then((result) => {
+      const aboveTtft = num(result, 0, 'above_avg_ttft') || 0;
+      const belowTtft = num(result, 0, 'below_avg_ttft') || 0;
+      return {
+        threshold,
+        above: {
+          count: num(result, 0, 'above_count'),
+          avgTtft: aboveTtft,
+          avgTps: num(result, 0, 'above_avg_tps') || 0,
+          avgCacheRatio: num(result, 0, 'above_avg_cache_ratio') || 0,
+        },
+        below: {
+          count: num(result, 0, 'below_count'),
+          avgTtft: belowTtft,
+          avgTps: num(result, 0, 'below_avg_tps') || 0,
+          avgCacheRatio: num(result, 0, 'below_avg_cache_ratio') || 0,
+        },
+        ttftDelta: aboveTtft - belowTtft,
+      };
+    });
+  });
+
+  return Promise.all(queries);
+}
+
+/**
+ * Adaptive data thresholds — replaces deriveDataThresholds().
+ */
+export async function queryDataThresholds(sessionFilter?: string | null, modelFilter?: string | null): Promise<DataThresholdsRow> {
+  const where = buildWhere(sessionFilter, modelFilter);
+
+  const sql = `
+    WITH stats AS (
+      SELECT
+        min(tokens_total)     AS min_tokens,
+        max(tokens_total)     AS max_tokens,
+        percentile_cont(0.25) WITHIN GROUP (ORDER BY ttft_ms) AS p25_ttft,
+        percentile_cont(0.75) WITHIN GROUP (ORDER BY ttft_ms) AS p75_ttft,
+        percentile_cont(0.50) WITHIN GROUP (ORDER BY tokens_cache_read::double / NULLIF(tokens_total, 0)) AS median_cache_ratio,
+        percentile_cont(0.90) WITHIN GROUP (ORDER BY tokens_input) AS p90_input,
+        percentile_cont(0.95) WITHIN GROUP (ORDER BY tokens_input) AS p95_input,
+        avg(stall_count) FILTER (WHERE stall_count > 0) AS avg_stall_count,
+        avg(stall_ms) FILTER (WHERE stall_ms > 0)        AS avg_stall_ms
+      FROM tps_paired
+      ${where}
+    )
+    SELECT
+      round(((min_tokens + (max_tokens - min_tokens) * 0.66)) / 1000) * 1000 AS cache_threshold,
+      round(((min_tokens + (max_tokens - min_tokens) * 0.33)) / 1000) * 1000 AS low_context,
+      p75_ttft            AS slow_ttft,
+      p25_ttft            AS fast_ttft,
+      greatest(0.1, 1 - median_cache_ratio + 0.1) AS high_new_input_ratio,
+      greatest(5000, p90_input)   AS anomaly_input_threshold,
+      round(min_tokens + (max_tokens - min_tokens) * 0.1) AS cache_drop_min_total,
+      round(p90_input * 0.5)     AS cache_drop_min_input,
+      greatest(0.3, greatest(0.1, 1 - median_cache_ratio + 0.1)) AS high_input_ratio,
+      greatest(p90_input, p95_input) AS high_input_severity_token,
+      greatest(2, round(avg_stall_count))   AS stall_count_threshold,
+      round(avg_stall_ms)                   AS stall_ms_severity
+    FROM stats
+  `;
+
+  const result = await runQuery(sql);
+  if (result.rowCount === 0) {
+    return {
+      cacheThreshold: 65000, lowContext: 32000, slowTtft: 15000, fastTtft: 3000,
+      highNewInputRatio: 0.15, anomalyInputThreshold: 10000, cacheDropMinTotal: 10000,
+      cacheDropMinInput: 5000, highInputRatio: 0.5, highInputSeverityToken: 20000,
+      stallCountThreshold: 3, stallMsSeverity: 5000,
+    };
+  }
+
+  return {
+    cacheThreshold: num(result, 0, 'cache_threshold'),
+    lowContext: num(result, 0, 'low_context'),
+    slowTtft: num(result, 0, 'slow_ttft'),
+    fastTtft: num(result, 0, 'fast_ttft'),
+    highNewInputRatio: num(result, 0, 'high_new_input_ratio'),
+    anomalyInputThreshold: num(result, 0, 'anomaly_input_threshold'),
+    cacheDropMinTotal: num(result, 0, 'cache_drop_min_total'),
+    cacheDropMinInput: num(result, 0, 'cache_drop_min_input'),
+    highInputRatio: num(result, 0, 'high_input_ratio'),
+    highInputSeverityToken: num(result, 0, 'high_input_severity_token'),
+    stallCountThreshold: num(result, 0, 'stall_count_threshold'),
+    stallMsSeverity: num(result, 0, 'stall_ms_severity'),
+  };
+}
+
+/**
+ * Anomaly detection — replaces AnomalyDetector's useMemo.
+ */
+export async function queryAnomalies(
+  thresholds: DataThresholdsRow,
+  sessionFilter?: string | null,
+  modelFilter?: string | null,
+): Promise<AnomalyRow[]> {
+  const where = buildWhere(sessionFilter, modelFilter);
+  const {
+    slowTtft, cacheThreshold, cacheDropMinTotal, cacheDropMinInput,
+    highInputRatio, highInputSeverityToken, stallCountThreshold, stallMsSeverity,
+    lowContext,
+  } = thresholds;
+
+  // We need running max cache_read for cache-drop detection — use a window function
+  const sql = `
+    WITH ordered AS (
+      SELECT
+        id, session_id, timestamp,
+        tokens_total, tokens_input, tokens_cache_read,
+        ttft_ms, stall_count, stall_ms,
+        energy_cost_usd, cost_total,
+        max(tokens_cache_read) OVER (PARTITION BY session_id ORDER BY timestamp ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_max_cache,
+        row_number() OVER (PARTITION BY session_id ORDER BY timestamp) - 1 AS idx
+      FROM tps_paired
+      ${where}
+    ),
+    detected AS (
+      SELECT
+        id, session_id, idx, tokens_total, energy_cost_usd, cost_total,
+        'cache-drop' AS anomaly_type,
+        'high' AS severity,
+        'Cache dropped from ' || running_max_cache::varchar || ' to ' || tokens_cache_read::varchar || ' tokens — likely a sub-agent or context reset' AS description
+      FROM ordered
+      WHERE tokens_cache_read < running_max_cache * 0.5
+        AND tokens_total > ${cacheDropMinTotal}
+        AND tokens_input > ${cacheDropMinInput}
+
+      UNION ALL
+
+      SELECT
+        id, session_id, idx, tokens_total, energy_cost_usd, cost_total,
+        'slow-zone' AS anomaly_type,
+        'medium' AS severity,
+        'TTFT ' || round(ttft_ms / 1000)::varchar || 's at ' || tokens_total::varchar || ' tokens — requests in the ${lowContext}–${cacheThreshold} range are slower than expected' AS description
+      FROM ordered
+      WHERE tokens_total >= ${lowContext}
+        AND tokens_total < ${cacheThreshold}
+        AND ttft_ms > ${slowTtft}
+
+      UNION ALL
+
+      SELECT
+        id, session_id, idx, tokens_total, energy_cost_usd, cost_total,
+        'high-new-input' AS anomaly_type,
+        CASE WHEN tokens_input > ${highInputSeverityToken} THEN 'high' ELSE 'low' END AS severity,
+        round(tokens_input::double / NULLIF(tokens_total, 0) * 100)::varchar || '% new input (' || tokens_input::varchar || ' tokens) — minimal cache hit' AS description
+      FROM ordered
+      WHERE tokens_input::double / NULLIF(tokens_total, 0) > ${highInputRatio}
+        AND tokens_input > ${cacheDropMinInput}
+
+      UNION ALL
+
+      SELECT
+        id, session_id, idx, tokens_total, energy_cost_usd, cost_total,
+        'stall-spike' AS anomaly_type,
+        CASE WHEN stall_ms > ${stallMsSeverity} THEN 'high' ELSE 'medium' END AS severity,
+        stall_count::varchar || ' stalls adding ' || (round(stall_ms / 1000 * 10) / 10)::varchar || 's of stall time' AS description
+      FROM ordered
+      WHERE stall_count >= ${stallCountThreshold}
+    ),
+    deduped AS (
+      SELECT *
+      FROM (
+        SELECT *,
+          ROW_NUMBER() OVER (PARTITION BY id, anomaly_type ORDER BY
+            CASE severity WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC) AS rn
+        FROM detected
+      ) sub
+      WHERE rn = 1
+    )
+    SELECT *, count(*) OVER () AS total_count
+    FROM deduped
+    ORDER BY
+      CASE severity WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC,
+      idx
+    LIMIT ${MAX_ANOMALY_ROWS}
+  `;
+
+  const result = await runQuery(sql);
+  const rows: AnomalyRow[] = [];
+  for (let i = 0; i < result.rowCount; i++) {
+    rows.push({
+      eventId: str(result, i, 'id'),
+      sessionId: str(result, i, 'session_id'),
+      type: col(result, i, 'anomaly_type') as AnomalyRow['type'],
+      index: num(result, i, 'idx'),
+      description: str(result, i, 'description'),
+      severity: col(result, i, 'severity') as AnomalyRow['severity'],
+      tokensTotal: num(result, i, 'tokens_total'),
+      energyCostUsd: maybeNum(result, i, 'energy_cost_usd'),
+      tokenCostUsd: maybeNum(result, i, 'cost_total'),
+      totalCount: num(result, i, 'total_count'),
+    });
+  }
+  return rows;
+}
+
+/**
+ * Full timeline — merged TPS + structural events for the Request Inspector.
+ */
+export async function queryTimeline(sessionFilter?: string | null, modelFilter?: string | null): Promise<TimelineEventRow[]> {
+  const tpsWhere = buildWhere(sessionFilter, modelFilter);
+  const sql = `
+    SELECT
+      id, session_id, timestamp, 'tps' AS type,
+      provider, model_id,
+      tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, tokens_total,
+      ttft_ms, total_ms, generation_ms, stall_ms, stall_count,
+      effective_tps, wall_tps, tps,
+      cost_total, energy_joules, energy_cost_usd,
+      rate_usd_per_m_tokens,
+      rate_usd_per_m_tokens_effective,
+      CASE WHEN tokens_total > 0 THEN tokens_cache_read::double / tokens_total ELSE 0 END AS cache_ratio,
+      NULL::bigint AS rewind_v,
+      NULL::varchar AS from_id,
+      NULL::varchar AS summary
+    FROM tps_paired
+    ${tpsWhere}
+
+    UNION ALL
+
+    SELECT
+      id, session_id, timestamp, type,
+      provider, model_id,
+      NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL,
+      NULL, NULL, NULL,
+      NULL,
+      NULL,
+      NULL,
+      rewind_v,
+      from_id,
+      summary
+    FROM events
+    WHERE type IN ('model_change', 'rewind', 'branch_summary')
+
+    ORDER BY timestamp
+  `;
+
+  const result = await runQuery(sql);
+  const rows: TimelineEventRow[] = [];
+  for (let i = 0; i < result.rowCount; i++) {
+    const type = str(result, i, 'type') as TimelineEventRow['type'];
+    const base = {
+      id: str(result, i, 'id'),
+      sessionId: str(result, i, 'session_id'),
+      timestamp: str(result, i, 'timestamp'),
+      type,
+    };
+    if (type === 'tps') {
+      rows.push({
+        ...base,
+        type: 'tps',
+        provider: str(result, i, 'provider'),
+        modelId: str(result, i, 'model_id'),
+        tokensInput: num(result, i, 'tokens_input'),
+        tokensOutput: num(result, i, 'tokens_output'),
+        tokensCacheRead: num(result, i, 'tokens_cache_read'),
+        tokensCacheWrite: num(result, i, 'tokens_cache_write'),
+        tokensTotal: num(result, i, 'tokens_total'),
+        ttftMs: num(result, i, 'ttft_ms'),
+        totalMs: num(result, i, 'total_ms'),
+        generationMs: num(result, i, 'generation_ms'),
+        stallMs: num(result, i, 'stall_ms'),
+        stallCount: num(result, i, 'stall_count'),
+        effectiveTps: num(result, i, 'effective_tps'),
+        wallTps: num(result, i, 'wall_tps'),
+        tps: num(result, i, 'tps'),
+        costTotal: maybeNum(result, i, 'cost_total'),
+        energyJoules: maybeNum(result, i, 'energy_joules'),
+        energyCostUsd: maybeNum(result, i, 'energy_cost_usd'),
+        rateUsdPerMTokens: maybeNum(result, i, 'rate_usd_per_m_tokens'),
+        rateUsdPerMTokensEffective: maybeNum(result, i, 'rate_usd_per_m_tokens_effective'),
+        cacheRatio: num(result, i, 'cache_ratio'),
+      });
+    } else if (type === 'model_change') {
+      rows.push({
+        ...base,
+        type: 'model_change',
+        provider: str(result, i, 'provider'),
+        modelId: str(result, i, 'model_id'),
+      });
+    } else if (type === 'rewind') {
+      rows.push({
+        ...base,
+        type: 'rewind',
+        rewindV: num(result, i, 'rewind_v'),
+      });
+    } else {
+      rows.push({
+        ...base,
+        type: 'branch_summary',
+        fromId: str(result, i, 'from_id'),
+        summary: str(result, i, 'summary'),
+      });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Multi-session summary — replaces computeMultiSessionSummary().
+ * Queries per-session from tps_paired grouped by session_id.
+ */
+export async function queryMultiSessionSummary(
+  fileNames: Map<string, string | null>,
+): Promise<{
+  sessionCount: number;
+  totalCalls: number;
+  totalTokens: number;
+  totalOutput: number;
+  totalCostUsd: number | null;
+  totalEnergyJoules: number | null;
+  sessions: SessionSummaryRow[];
+  models: ModelInfoRow[];
+  avgTps: number;
+  weightedTps: number;
+  avgTtft: number;
+  timeRangeStart: string;
+  timeRangeEnd: string;
+} | null> {
+  const sql = `
+    SELECT
+      session_id,
+      count(*)                                   AS total_calls,
+      sum(tokens_total)                          AS total_tokens,
+      sum(tokens_output)                         AS total_output,
+      round(EXTRACT(EPOCH FROM (max(timestamp::timestamp) - min(timestamp::timestamp))) * 1000) AS wall_clock_ms,
+      avg(effective_tps)                         AS avg_tps,
+      CASE WHEN sum(effective_ms) > 0
+        THEN sum(tokens_output) / (sum(effective_ms) / 1000.0)
+        ELSE 0 END                               AS weighted_tps,
+      avg(ttft_ms)                               AS avg_ttft,
+      sum(CASE WHEN energy_cost_usd IS NOT NULL THEN energy_cost_usd
+               WHEN cost_total IS NOT NULL THEN cost_total ELSE 0 END) AS total_cost,
+      sum(energy_joules)                         AS total_energy_joules,
+      (array_agg(model_id ORDER BY timestamp DESC))[1]  AS last_model,
+      (array_agg(provider ORDER BY timestamp DESC))[1]    AS last_provider,
+      count(*) FILTER (WHERE stall_count > 0 OR stall_ms > 0) AS stalled_calls,
+      min(timestamp)                             AS time_range_start,
+      max(timestamp)                             AS time_range_end
+    FROM tps_paired
+    GROUP BY session_id
+    ORDER BY min(timestamp)
+  `;
+
+  const result = await runQuery(sql);
+  if (result.rowCount === 0) return null;
+
+  const sessions: SessionSummaryRow[] = [];
+  let totalCalls = 0, totalTokens = 0, totalOutput = 0;
+  let totalCostAccum = 0, totalEnergyAccum = 0;
+  let hasCost = false, hasEnergy = false;
+  let globalStart = '', globalEnd = '';
+
+  for (let i = 0; i < result.rowCount; i++) {
+    const sid = str(result, i, 'session_id');
+    const cost = maybeNum(result, i, 'total_cost');
+    const energy = maybeNum(result, i, 'total_energy_joules');
+
+    sessions.push({
+      sessionId: sid,
+      fileName: fileNames.get(sid) ?? null,
+      totalCalls: num(result, i, 'total_calls'),
+      totalTokens: num(result, i, 'total_tokens'),
+      totalOutput: num(result, i, 'total_output'),
+      wallClockMs: num(result, i, 'wall_clock_ms'),
+      avgTps: num(result, i, 'avg_tps'),
+      weightedTps: num(result, i, 'weighted_tps'),
+      avgTtft: num(result, i, 'avg_ttft'),
+      totalCostUsd: cost,
+      totalEnergyJoules: energy,
+      model: str(result, i, 'last_model'),
+      provider: str(result, i, 'last_provider'),
+      stalledCalls: num(result, i, 'stalled_calls'),
+      timeRangeStart: str(result, i, 'time_range_start'),
+      timeRangeEnd: str(result, i, 'time_range_end'),
+    });
+
+    totalCalls += num(result, i, 'total_calls');
+    totalTokens += num(result, i, 'total_tokens');
+    totalOutput += num(result, i, 'total_output');
+    if (cost !== null) { totalCostAccum += cost; hasCost = true; }
+    if (energy !== null) { totalEnergyAccum += energy; hasEnergy = true; }
+
+    const start = str(result, i, 'time_range_start');
+    const end = str(result, i, 'time_range_end');
+    if (start && (!globalStart || start < globalStart)) globalStart = start;
+    if (end && (!globalEnd || end > globalEnd)) globalEnd = end;
+  }
+
+  // Global models across all sessions
+  const models = await queryModels();
+
+  // Cross-session weighted avg
+  const totalWeightedTpsNum = sessions.reduce((s, ses) => s + ses.weightedTps * ses.totalOutput, 0);
+  const totalWeightedTpsDen = sessions.reduce((s, ses) => s + ses.totalOutput, 0);
+  const totalAvgTtftSum = sessions.reduce((s, ses) => s + ses.avgTtft * ses.totalCalls, 0);
+  const totalAvgTpsSum = sessions.reduce((s, ses) => s + ses.avgTps * ses.totalCalls, 0);
+
+  return {
+    sessionCount: sessions.length,
+    totalCalls,
+    totalTokens,
+    totalOutput,
+    totalCostUsd: hasCost ? totalCostAccum : null,
+    totalEnergyJoules: hasEnergy ? totalEnergyAccum : null,
+    sessions,
+    models,
+    avgTps: totalCalls > 0 ? totalAvgTpsSum / totalCalls : 0,
+    weightedTps: totalWeightedTpsDen > 0 ? totalWeightedTpsNum / totalWeightedTpsDen : 0,
+    avgTtft: totalCalls > 0 ? totalAvgTtftSum / totalCalls : 0,
+    timeRangeStart: globalStart,
+    timeRangeEnd: globalEnd,
+  };
+}

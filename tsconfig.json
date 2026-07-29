@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/metrics-core" },
+    { "path": "./apps/collector" },
+    { "path": "./apps/dashboard" }
+  ]
+}

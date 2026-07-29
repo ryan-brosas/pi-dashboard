@@ -1,0 +1,33 @@
+{
+  "name": "pi-tps-relay",
+  "version": "2.0.1",
+  "description": "Sanitized usage and performance metrics collector for pi",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "export-metrics": "tsx src/export-metrics.ts",
+    "typecheck": "tsc -b"
+  },
+  "files": [
+    "dist",
+    "scripts"
+  ],
+  "pi": {
+    "extensions": [
+      "./dist/extension.js"
+    ]
+  },
+  "dependencies": {
+    "@pi-tps/metrics-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=0.74.0",
+    "@earendil-works/pi-coding-agent": ">=0.74.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "esbuild": "^0.25.12",
+    "tsx": "4.20.6",
+    "typescript": "6.0.3"
+  }
+}
