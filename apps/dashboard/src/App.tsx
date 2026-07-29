@@ -397,9 +397,7 @@ export default function App() {
           <div className="flex items-center gap-3 min-w-0">
             <a
               href={AUTHOR_SITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="pi-tps by Ryan Jose Brosas"
+              aria-label="Visit Ryan Jose Brosas home"
               className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] md:hidden"
             >
               <Logo size={20} />

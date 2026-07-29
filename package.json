@@ -1,6 +1,6 @@
 {
   "name": "pi-tps-monorepo",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "description": "Local and hosted usage, cost, and performance observability for pi",
   "keywords": [
@@ -25,6 +25,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @pi-tps/dashboard dev",
+    "postinstall": "node apps/collector/scripts/prepare-package.mjs",
     "build": "pnpm --filter pi-tps-relay build && pnpm --filter @pi-tps/dashboard build",
     "package:vps": "pnpm build && node apps/dashboard/scripts/package-vps-bundle.mjs",
     "typecheck": "tsc -b",

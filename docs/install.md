@@ -30,7 +30,7 @@ For a public VPS:
 Install the pinned v2 Git package:
 
 ```bash
-pi install git:github.com/ryan-brosas/pi-dashboard@v2.0.1
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.2
 ```
 
 Restart Pi or run `/reload`, then open all local history:
@@ -39,14 +39,14 @@ Restart Pi or run `/reload`, then open all local history:
 /tps-web --history
 ```
 
-Pi loads the tracked TypeScript extension before generated assets exist. On the first dashboard command, the extension runs the following pinned build inside Pi's managed package clone:
+Pi runs `npm install` while installing or reconciling a Git package. This package uses that lifecycle to run the following pinned build inside Pi's managed clone:
 
 ```bash
 npx --yes pnpm@11.6.0 install --frozen-lockfile
 npx --yes pnpm@11.6.0 build
 ```
 
-Later invocations reuse that build. Updating the Git package may remove generated files and trigger one new build.
+The install command completes only after the dashboard is ready. Later invocations reuse the build. Updating the Git package may remove generated files and prepare one new build during reconciliation.
 
 ### Add live TPS telemetry
 
@@ -62,7 +62,7 @@ Normal Pi sessions already provide usage, token, and reported-cost history. TPS,
 ### Remove the extension
 
 ```bash
-pi remove git:github.com/ryan-brosas/pi-dashboard@v2.0.1
+pi remove https://github.com/ryan-brosas/pi-dashboard@v2.0.2
 ```
 
 Restart Pi or run `/reload` afterward.
@@ -72,7 +72,7 @@ Restart Pi or run `/reload` afterward.
 Use a checkout when developing the dashboard or running the hourly relay:
 
 ```bash
-git clone --branch v2.0.1 https://github.com/ryan-brosas/pi-dashboard.git
+git clone --branch v2.0.2 https://github.com/ryan-brosas/pi-dashboard.git
 cd pi-dashboard
 corepack enable
 pnpm install --frozen-lockfile

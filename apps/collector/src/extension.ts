@@ -49,18 +49,16 @@ const PKG_ROOT = join(extensionDir, '..', '..', '..');
 const DIST_PATH = join(PKG_ROOT, 'apps', 'dashboard', 'dist');
 
 /**
- * Ensure the built web app exists. Git packages load this tracked source file
- * because generated assets are ignored. The first command invocation installs
- * the locked workspace and builds the dashboard with the pinned pnpm version.
- * The build remains in Pi's package clone until the package is updated.
+ * Ensure the built web app exists. Package installation normally prepares the
+ * ignored assets through the npm lifecycle. Local-path packages and installs
+ * with lifecycle scripts disabled use this pinned build as a fallback.
  *
- * Returns true if dist/ is available (pre-built or after auto-build).
+ * Returns true if dist/ is available before or after the fallback build.
  */
 async function ensureDist(): Promise<boolean> {
   if (existsSync(join(DIST_PATH, 'index.html'))) return true;
 
-  // Auto-build: need dev deps (vite, typescript, etc.) which
-  // --omit=dev skips. Full install + build in the package root.
+  // The fallback needs the dev dependencies that Pi's npm install omits.
   const run = (cmd: string, args: string[]): Promise<void> =>
     new Promise((res, rej) => {
       execFile(cmd, args, { cwd: PKG_ROOT, timeout: 180_000 }, (err) =>

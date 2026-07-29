@@ -25,6 +25,7 @@ const agentDir = join(scratch, 'agent');
 const sessionDir = join(scratch, 'sessions');
 const binDir = join(scratch, 'bin');
 const buildLog = join(scratch, 'build.log');
+const openLog = join(scratch, 'open.log');
 let child;
 
 function copySourcePackage() {
@@ -56,24 +57,31 @@ function writeFixtureCommands() {
     '',
   ].join('\n'));
   const opener = join(binDir, 'xdg-open');
-  writeFileSync(opener, '#!/usr/bin/env bash\nexit 0\n');
+  writeFileSync(opener, [
+    '#!/usr/bin/env bash',
+    'printf \'%s\\n\' "$*" >> "$SMOKE_OPEN_LOG"',
+    '',
+  ].join('\n'));
   chmodSync(npx, 0o755);
   chmodSync(opener, 0o755);
 }
 
-function waitForFirstUseBuild() {
+function readBuildCommands() {
+  return existsSync(buildLog)
+    ? readFileSync(buildLog, 'utf8').trim().split('\n').filter(Boolean)
+    : [];
+}
+
+function waitForDashboardOpen() {
   return new Promise((resolve, reject) => {
-    const deadline = Date.now() + 60_000;
+    const deadline = Date.now() + 20_000;
     const check = () => {
-      const commands = existsSync(buildLog)
-        ? readFileSync(buildLog, 'utf8').trim().split('\n').filter(Boolean)
-        : [];
-      if (commands.length >= 2 && existsSync(join(packageRoot, 'apps/dashboard/dist/index.html'))) {
-        resolve(commands);
+      if (existsSync(openLog) && readFileSync(openLog, 'utf8').trim()) {
+        resolve();
         return;
       }
       if (Date.now() >= deadline) {
-        reject(new Error(`First-use build timed out. Commands: ${commands.join(' | ')}`));
+        reject(new Error('Prepared dashboard did not open.'));
         return;
       }
       setTimeout(check, 100);
@@ -110,6 +118,7 @@ try {
     PI_CODING_AGENT_SESSION_DIR: sessionDir,
     PI_OFFLINE: '1',
     SMOKE_BUILD_LOG: buildLog,
+    SMOKE_OPEN_LOG: openLog,
     PATH: `${binDir}:${process.env.PATH}`,
   };
   execFileSync('npm', ['install', '--omit=dev'], {
@@ -117,6 +126,18 @@ try {
     env: { ...baseEnv, npm_config_audit: 'false', npm_config_fund: 'false' },
     stdio: 'pipe',
   });
+  if (!existsSync(join(packageRoot, 'apps/dashboard/dist/index.html'))) {
+    throw new Error('Package installation did not prepare dashboard assets.');
+  }
+  const { packageManager } = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  const expected = [
+    `--yes ${packageManager} install --frozen-lockfile`,
+    `--yes ${packageManager} build`,
+  ];
+  const installCommands = readBuildCommands();
+  if (JSON.stringify(installCommands) !== JSON.stringify(expected)) {
+    throw new Error(`Unexpected install-time commands: ${installCommands.join(' | ')}`);
+  }
   execFileSync(piCommand, ['install', packageRoot, '--approve'], { env: baseEnv, stdio: 'pipe' });
 
   child = spawn(
@@ -147,17 +168,13 @@ try {
   ]);
 
   child.stdin.write(`${JSON.stringify({ id: 'history', type: 'prompt', message: '/tps-web --history' })}\n`);
-  const buildCommands = await waitForFirstUseBuild();
-  const { packageManager } = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
-  const expected = [
-    `--yes ${packageManager} install --frozen-lockfile`,
-    `--yes ${packageManager} build`,
-  ];
-  if (JSON.stringify(buildCommands.slice(0, 2)) !== JSON.stringify(expected)) {
-    throw new Error(`Unexpected first-use commands: ${buildCommands.join(' | ')}`);
+  await waitForDashboardOpen();
+  const finalCommands = readBuildCommands();
+  if (JSON.stringify(finalCommands) !== JSON.stringify(expected)) {
+    throw new Error(`Dashboard command triggered an unexpected rebuild: ${finalCommands.join(' | ')}`);
   }
 
-  console.log('Distribution smoke passed: source command discovery and pinned first-use build.');
+  console.log('Distribution smoke passed: install-time build, command discovery, and prepared dashboard launch.');
 } finally {
   child?.kill('SIGTERM');
   rmSync(scratch, { recursive: true, force: true });

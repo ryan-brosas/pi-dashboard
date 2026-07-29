@@ -10,15 +10,15 @@ Requirements:
 
 - Node.js 22.19 or newer
 - pi 0.74 or newer
-- Git and an internet connection for the first dashboard build
+- Git and an internet connection during package installation
 
 Install the pinned Git package:
 
 ```bash
-pi install git:github.com/ryan-brosas/pi-dashboard@v2.0.1
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.2
 ```
 
-Restart pi or run `/reload`. The first dashboard command builds the web assets once inside pi's managed package clone.
+Restart pi or run `/reload`. Pi's package installation prepares the web assets with the repository-pinned pnpm version, so the dashboard opens immediately.
 
 Live TPS and TTFT data is consumed automatically when compatible `tps` telemetry events are present. Normal Pi history, token usage, and reported cost do not require an additional extension.
 
@@ -104,6 +104,6 @@ pnpm package:vps
 
 `pnpm package:vps` creates a deterministic prebuilt VPS archive and checksum under the ignored `release/` directory.
 
-`pnpm test` includes a clean-package smoke that verifies pi discovers `/tps-web` without generated assets and that first use invokes the pinned workspace build.
+`pnpm test` includes a clean-package smoke that verifies installation prepares the dashboard with the pinned workspace build, pi discovers `/tps-web`, and the first command opens without rebuilding.
 
 Licensed under the [MIT License](LICENSE).

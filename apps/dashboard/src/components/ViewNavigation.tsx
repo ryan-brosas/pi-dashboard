@@ -16,9 +16,7 @@ export default function ViewNavigation({ viewTab, onChange, onUpload, canUseSess
     <div className="flex h-full flex-col">
       <a
         href={AUTHOR_SITE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="pi-tps by Ryan Jose Brosas"
+        aria-label="Visit Ryan Jose Brosas home"
         className="mx-3 flex items-center gap-2 rounded-md px-2 pt-5 pb-6 text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
       >
         <Logo size={22} />
