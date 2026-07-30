@@ -1,13 +1,22 @@
 {
-  "name": "pi-tps-monorepo",
-  "version": "2.0.2",
-  "private": true,
-  "description": "Local and hosted usage, cost, and performance observability for pi",
+  "name": "pi-tps-web",
+  "version": "2.0.3",
+  "description": "Local-first pi usage, cost, performance, and PAYG model market dashboard",
   "keywords": [
     "pi-package",
     "pi",
+    "pi-extension",
+    "observability",
     "telemetry",
-    "dashboard"
+    "metrics",
+    "performance",
+    "tokens",
+    "cost",
+    "payg",
+    "model-market",
+    "pricing",
+    "dashboard",
+    "duckdb"
   ],
   "license": "MIT",
   "author": {
@@ -16,15 +25,28 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ryan-brosas/pi-dashboard.git"
+    "url": "git+https://github.com/ryan-brosas/pi-dashboard.git"
   },
   "homepage": "https://github.com/ryan-brosas/pi-dashboard#readme",
+  "bugs": {
+    "url": "https://github.com/ryan-brosas/pi-dashboard/issues"
+  },
+  "files": [
+    "apps/collector/scripts/prepare-package.mjs",
+    "apps/collector/src/extension.ts",
+    "apps/dashboard/dist",
+    "docs/install.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=22.19.0"
   },
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @pi-tps/dashboard dev",
+    "prepack": "pnpm build",
     "postinstall": "node apps/collector/scripts/prepare-package.mjs",
     "build": "pnpm --filter pi-tps-relay build && pnpm --filter @pi-tps/dashboard build",
     "package:vps": "pnpm build && node apps/dashboard/scripts/package-vps-bundle.mjs",
@@ -51,11 +73,16 @@
     "typescript-eslint": "8.59.4",
     "vitest": "^4.1.7"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
   "packageManager": "pnpm@11.6.0",
   "pi": {
     "extensions": [
       "./apps/collector/src/extension.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/ryan-brosas/pi-dashboard/main/apps/dashboard/public/preview.png"
   },
   "overrides": {
     "brace-expansion": "5.0.6",

@@ -14,5 +14,18 @@ export default defineConfig({
   },
   build: {
     modulePreload: false,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'sql-editor',
+              test: /node_modules[/](?:@codemirror|@lezer)[/]/,
+              maxSize: 400_000,
+            },
+          ],
+        },
+      },
+    },
   },
 })

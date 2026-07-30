@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  compareModelPricing, estimateModelCost, findModelPerformance, findPricingModel,
+  compareModelPricing, comparePaygDeals, estimateModelCost, findModelPerformance, findPricingModel,
   findPricingPerformance, parsePerformanceCatalog, parsePricingCatalog, resolvePricingModel,
   type TokenUsageMix,
 } from './pricing';
@@ -160,6 +160,35 @@ describe('pricing catalog', () => {
       ok: false,
       error: 'Performance catalog contains no valid route records',
     });
+  });
+
+  it('ranks only PAYG routes that satisfy explicit deal constraints', () => {
+    const pricing = parsePricingCatalog({
+      generated_at: '',
+      models: [
+        { ...catalogPayload.models[0], id: 'acme/model-a', provider: 'budget', subscription: true, pricing: { input: 0.1, output: 0.2 } },
+        { ...catalogPayload.models[0], id: 'acme/model-a', provider: 'promo', discount: 0.5, uptime_30m: 99.9, pricing: { input: 0.2, output: 0.4 } },
+        { ...catalogPayload.models[0], id: 'acme/model-a', provider: 'steady', discount: 0, uptime_30m: 99.95, pricing: { input: 0.3, output: 0.6 } },
+        { ...catalogPayload.models[0], id: 'acme/model-a', provider: 'unknown-speed', discount: 0, uptime_30m: 99.95, pricing: { input: 0.25, output: 0.5 } },
+      ],
+    });
+    const performance = parsePerformanceCatalog({
+      'model-a|steady': { latency: { p50: 900 }, throughput: { p50: 80 } },
+      'model-a|promo': { latency: { p50: 700 }, throughput: { p50: 100 } },
+    });
+    if (!pricing.ok) throw new Error(pricing.error);
+    if (!performance.ok) throw new Error(performance.error);
+
+    const deals = comparePaygDeals(pricing.catalog.models, usage, 500, performance.catalog, {
+      stablePricingOnly: true,
+      minContextLength: 200_000,
+      minUptime30m: 99.9,
+      minThroughputP50: 50,
+      maxLatencyP50: 1_000,
+    });
+
+    expect(deals.map((deal) => deal.model.provider)).toEqual(['steady']);
+    expect(deals[0].performance?.throughput?.p50).toBe(80);
   });
 
   it('ranks alternatives by projected cost and reports savings against observed cost', () => {

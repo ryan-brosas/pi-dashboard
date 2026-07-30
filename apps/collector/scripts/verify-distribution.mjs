@@ -1,10 +1,12 @@
 import { execFileSync, spawn } from 'node:child_process';
+import { once } from 'node:events';
 import {
   chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -21,7 +23,10 @@ const piCommand = join(
 );
 const scratch = mkdtempSync(join(tmpdir(), 'pi-tps-distribution-'));
 const packageRoot = join(scratch, 'package');
+const packDir = join(scratch, 'pack');
 const agentDir = join(scratch, 'agent');
+const packedAgentDir = join(scratch, 'packed-agent');
+const packedPackageRoot = join(packedAgentDir, 'npm', 'node_modules', 'pi-tps-web');
 const sessionDir = join(scratch, 'sessions');
 const binDir = join(scratch, 'bin');
 const buildLog = join(scratch, 'build.log');
@@ -90,6 +95,65 @@ function waitForDashboardOpen() {
   });
 }
 
+async function verifyPiPackage(packagePath, env, expectedBuildCommands) {
+  rmSync(openLog, { force: true });
+  execFileSync(piCommand, ['install', packagePath, '--approve'], { env, stdio: 'pipe' });
+
+  child = spawn(
+    piCommand,
+    ['--mode', 'rpc', '--no-session', '--no-skills', '--no-prompt-templates', '--no-context-files'],
+    { env, stdio: ['pipe', 'pipe', 'pipe'] },
+  );
+  let stderr = '';
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const lines = createInterface({ input: child.stdout });
+  const commandReady = new Promise((resolve, reject) => {
+    lines.on('line', (line) => {
+      let message;
+      try { message = JSON.parse(line); } catch { return; }
+      if (message.command !== 'get_commands') return;
+      const commands = message.data?.commands ?? [];
+      if (!commands.some((command) => command.name === 'tps-web')) {
+        reject(new Error(`tps-web command was not registered: ${line}`));
+        return;
+      }
+      resolve();
+    });
+  });
+  child.stdin.write(`${JSON.stringify({ type: 'get_commands' })}\n`);
+  await Promise.race([
+    commandReady,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Command discovery timed out. ${stderr}`)), 20_000)),
+  ]);
+
+  child.stdin.write(`${JSON.stringify({ id: 'history', type: 'prompt', message: '/tps-web --history' })}\n`);
+  await waitForDashboardOpen();
+  const finalCommands = readBuildCommands();
+  if (JSON.stringify(finalCommands) !== JSON.stringify(expectedBuildCommands)) {
+    throw new Error(`Dashboard command triggered unexpected builds: ${finalCommands.join(' | ')}`);
+  }
+
+  const runningChild = child;
+  child = undefined;
+  const exited = once(runningChild, 'exit');
+  runningChild.kill('SIGTERM');
+  await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 2_000))]);
+}
+
+function createPackedPackage() {
+  mkdirSync(packDir, { recursive: true });
+  execFileSync('npm', ['pack', '--pack-destination', packDir, '--json'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  const archives = readdirSync(packDir).filter((file) => file.endsWith('.tgz'));
+  if (archives.length !== 1) {
+    throw new Error(`Expected one npm archive, found ${archives.length}.`);
+  }
+  return join(packDir, archives[0]);
+}
+
 try {
   mkdirSync(packageRoot, { recursive: true });
   mkdirSync(agentDir, { recursive: true });
@@ -138,43 +202,41 @@ try {
   if (JSON.stringify(installCommands) !== JSON.stringify(expected)) {
     throw new Error(`Unexpected install-time commands: ${installCommands.join(' | ')}`);
   }
-  execFileSync(piCommand, ['install', packageRoot, '--approve'], { env: baseEnv, stdio: 'pipe' });
+  await verifyPiPackage(packageRoot, baseEnv, expected);
 
-  child = spawn(
-    piCommand,
-    ['--mode', 'rpc', '--no-session', '--no-skills', '--no-prompt-templates', '--no-context-files'],
-    { env: baseEnv, stdio: ['pipe', 'pipe', 'pipe'] },
-  );
-  let stderr = '';
-  child.stderr.on('data', (chunk) => { stderr += chunk; });
-  const lines = createInterface({ input: child.stdout });
-  const commandReady = new Promise((resolve, reject) => {
-    lines.on('line', (line) => {
-      let message;
-      try { message = JSON.parse(line); } catch { return; }
-      if (message.command !== 'get_commands') return;
-      const commands = message.data?.commands ?? [];
-      if (!commands.some((command) => command.name === 'tps-web')) {
-        reject(new Error(`tps-web command was not registered: ${line}`));
-        return;
-      }
-      resolve();
-    });
-  });
-  child.stdin.write(`${JSON.stringify({ type: 'get_commands' })}\n`);
-  await Promise.race([
-    commandReady,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`Command discovery timed out. ${stderr}`)), 20_000)),
-  ]);
-
-  child.stdin.write(`${JSON.stringify({ id: 'history', type: 'prompt', message: '/tps-web --history' })}\n`);
-  await waitForDashboardOpen();
-  const finalCommands = readBuildCommands();
-  if (JSON.stringify(finalCommands) !== JSON.stringify(expected)) {
-    throw new Error(`Dashboard command triggered an unexpected rebuild: ${finalCommands.join(' | ')}`);
+  const archive = createPackedPackage();
+  rmSync(buildLog, { force: true });
+  mkdirSync(packedAgentDir, { recursive: true });
+  const packedEnv = { ...baseEnv, PI_CODING_AGENT_DIR: packedAgentDir, PI_OFFLINE: '0' };
+  await verifyPiPackage(`npm:pi-tps-web@file:${archive}`, packedEnv, []);
+  for (const requiredPath of [
+    'README.md',
+    'LICENSE',
+    'apps/collector/scripts/prepare-package.mjs',
+    'apps/collector/src/extension.ts',
+    'apps/dashboard/dist/index.html',
+    'docs/install.md',
+  ]) {
+    if (!existsSync(join(packedPackageRoot, requiredPath))) {
+      throw new Error(`Packed npm package is missing ${requiredPath}.`);
+    }
+  }
+  for (const forbiddenPath of [
+    '.github',
+    '.pi',
+    'AGENTS.md',
+    'apps/dashboard/src',
+    'pnpm-lock.yaml',
+  ]) {
+    if (existsSync(join(packedPackageRoot, forbiddenPath))) {
+      throw new Error(`Packed npm package unexpectedly contains ${forbiddenPath}.`);
+    }
+  }
+  if (readBuildCommands().length !== 0) {
+    throw new Error('Packed npm installation unexpectedly rebuilt the dashboard.');
   }
 
-  console.log('Distribution smoke passed: install-time build, command discovery, and prepared dashboard launch.');
+  console.log('Distribution smoke passed: source preparation and packed npm installs both discover and open /tps-web.');
 } finally {
   child?.kill('SIGTERM');
   rmSync(scratch, { recursive: true, force: true });

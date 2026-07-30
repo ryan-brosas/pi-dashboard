@@ -49,6 +49,20 @@ export interface ModelPricingComparison extends ModelCostEstimate {
   savingsPct: number | null;
 }
 
+export interface PaygDealConstraints {
+  stablePricingOnly?: boolean;
+  zdrOnly?: boolean;
+  minContextLength?: number;
+  minUptime30m?: number;
+  minThroughputP50?: number;
+  maxLatencyP50?: number;
+}
+
+export interface PaygDealComparison extends ModelPricingComparison {
+  performance: PerformanceRecord | null;
+  estimatedCachePricing: boolean;
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -359,4 +373,37 @@ export function compareModelPricing(
       };
     })
     .sort((a, b) => a.totalCostUsd - b.totalCostUsd || a.model.id.localeCompare(b.model.id));
+}
+
+export function comparePaygDeals(
+  models: PricingModel[],
+  usage: TokenUsageMix,
+  observedCostUsd: number | null,
+  performanceCatalog: PerformanceCatalog | null,
+  constraints: PaygDealConstraints = {},
+): PaygDealComparison[] {
+  return compareModelPricing(models.filter((model) => !model.subscription), usage, observedCostUsd)
+    .map((comparison) => ({
+      ...comparison,
+      performance: performanceCatalog
+        ? findModelPerformance(performanceCatalog, comparison.model)
+        : null,
+      estimatedCachePricing:
+        (usage.cacheReadTokens > 0 && comparison.model.pricing.cacheRead === null)
+        || (usage.cacheWriteTokens > 0 && comparison.model.pricing.cacheWrite === null),
+    }))
+    .filter((deal) => {
+      const throughputP50 = deal.performance?.throughput?.p50 ?? null;
+      const latencyP50 = deal.performance?.latency?.p50 ?? null;
+      return (!constraints.stablePricingOnly || deal.model.discount === 0)
+        && (!constraints.zdrOnly || deal.model.zdr)
+        && (constraints.minContextLength === undefined
+          || (deal.model.contextLength !== null && deal.model.contextLength >= constraints.minContextLength))
+        && (constraints.minUptime30m === undefined
+          || (deal.model.uptime30m !== null && deal.model.uptime30m >= constraints.minUptime30m))
+        && (constraints.minThroughputP50 === undefined
+          || (throughputP50 !== null && throughputP50 >= constraints.minThroughputP50))
+        && (constraints.maxLatencyP50 === undefined
+          || (latencyP50 !== null && latencyP50 <= constraints.maxLatencyP50));
+    });
 }

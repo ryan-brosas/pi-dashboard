@@ -11,12 +11,13 @@ This guide covers four independent modes:
 
 ## Requirements
 
-For the Pi extension or a source checkout:
+For the Pi extension:
 
 - Node.js 22.19 or newer
 - pi 0.74 or newer
-- Git
-- pnpm 11.6.0 for source development
+- an internet connection during installation
+
+A source checkout also requires Git and pnpm 11.6.0.
 
 For a public VPS:
 
@@ -27,10 +28,10 @@ For a public VPS:
 
 ## Install the Pi extension
 
-Install the pinned v2 Git package:
+Install the package from npm:
 
 ```bash
-pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.2
+pi install npm:pi-tps-web
 ```
 
 Restart Pi or run `/reload`, then open all local history:
@@ -39,14 +40,15 @@ Restart Pi or run `/reload`, then open all local history:
 /tps-web --history
 ```
 
-Pi runs `npm install` while installing or reconciling a Git package. This package uses that lifecycle to run the following pinned build inside Pi's managed clone:
+The npm package includes the prepared dashboard, so the command opens without a local build. Pi lists it in the [package gallery](https://pi.dev/packages/pi-tps-web) from its published `pi-package` metadata.
+
+To pin the repository release instead, install the Git package:
 
 ```bash
-npx --yes pnpm@11.6.0 install --frozen-lockfile
-npx --yes pnpm@11.6.0 build
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.2
 ```
 
-The install command completes only after the dashboard is ready. Later invocations reuse the build. Updating the Git package may remove generated files and prepare one new build during reconciliation.
+Pi prepares a Git install with the repository-pinned pnpm version. Later invocations reuse that build.
 
 ### Add live TPS telemetry
 
@@ -62,7 +64,7 @@ Normal Pi sessions already provide usage, token, and reported-cost history. TPS,
 ### Remove the extension
 
 ```bash
-pi remove https://github.com/ryan-brosas/pi-dashboard@v2.0.2
+pi remove npm:pi-tps-web
 ```
 
 Restart Pi or run `/reload` afterward.
@@ -231,11 +233,11 @@ Compose mounts the deployment root once at the same path inside the container. C
 
 ### `/tps-web` is not listed
 
-Run `pi list`, confirm the Git source is installed, then restart Pi or run `/reload`.
+Run `pi list`, confirm `npm:pi-tps-web` (or the Git fallback) is installed, then restart Pi or run `/reload`.
 
-### The first build fails
+### A Git or source install build fails
 
-From the managed package clone or your source checkout, run:
+From the managed Git package clone or your source checkout, run:
 
 ```bash
 npx --yes pnpm@11.6.0 install --frozen-lockfile
