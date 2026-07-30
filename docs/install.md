@@ -31,7 +31,7 @@ For a public VPS:
 Install the package from npm:
 
 ```bash
-pi install npm:pi-tps-web
+pi install npm:@ryanjoserbrosas/pi-tps-web
 ```
 
 Restart Pi or run `/reload`, then open all local history:
@@ -40,12 +40,12 @@ Restart Pi or run `/reload`, then open all local history:
 /tps-web --history
 ```
 
-The npm package includes the prepared dashboard, so the command opens without a local build. Pi lists it in the [package gallery](https://pi.dev/packages/pi-tps-web) from its published `pi-package` metadata.
+The npm package includes the prepared dashboard, so the command opens without a local build. Pi lists it in the [package gallery](https://pi.dev/packages/@ryanjoserbrosas/pi-tps-web) from its published `pi-package` metadata.
 
 To pin the repository release instead, install the Git package:
 
 ```bash
-pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.2
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.4
 ```
 
 Pi prepares a Git install with the repository-pinned pnpm version. Later invocations reuse that build.
@@ -64,7 +64,7 @@ Normal Pi sessions already provide usage, token, and reported-cost history. TPS,
 ### Remove the extension
 
 ```bash
-pi remove npm:pi-tps-web
+pi remove npm:@ryanjoserbrosas/pi-tps-web
 ```
 
 Restart Pi or run `/reload` afterward.
@@ -74,7 +74,7 @@ Restart Pi or run `/reload` afterward.
 Use a checkout when developing the dashboard or running the hourly relay:
 
 ```bash
-git clone --branch v2.0.2 https://github.com/ryan-brosas/pi-dashboard.git
+git clone --branch v2.0.4 https://github.com/ryan-brosas/pi-dashboard.git
 cd pi-dashboard
 corepack enable
 pnpm install --frozen-lockfile
@@ -233,7 +233,7 @@ Compose mounts the deployment root once at the same path inside the container. C
 
 ### `/tps-web` is not listed
 
-Run `pi list`, confirm `npm:pi-tps-web` (or the Git fallback) is installed, then restart Pi or run `/reload`.
+Run `pi list`, confirm `npm:@ryanjoserbrosas/pi-tps-web` (or the Git fallback) is installed, then restart Pi or run `/reload`.
 
 ### A Git or source install build fails
 

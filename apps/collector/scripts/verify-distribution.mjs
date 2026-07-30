@@ -26,7 +26,7 @@ const packageRoot = join(scratch, 'package');
 const packDir = join(scratch, 'pack');
 const agentDir = join(scratch, 'agent');
 const packedAgentDir = join(scratch, 'packed-agent');
-const packedPackageRoot = join(packedAgentDir, 'npm', 'node_modules', 'pi-tps-web');
+const packedPackageRoot = join(packedAgentDir, 'npm', 'node_modules', '@ryanjoserbrosas', 'pi-tps-web');
 const sessionDir = join(scratch, 'sessions');
 const binDir = join(scratch, 'bin');
 const buildLog = join(scratch, 'build.log');
@@ -208,7 +208,7 @@ try {
   rmSync(buildLog, { force: true });
   mkdirSync(packedAgentDir, { recursive: true });
   const packedEnv = { ...baseEnv, PI_CODING_AGENT_DIR: packedAgentDir, PI_OFFLINE: '0' };
-  await verifyPiPackage(`npm:pi-tps-web@file:${archive}`, packedEnv, []);
+  await verifyPiPackage(`npm:@ryanjoserbrosas/pi-tps-web@file:${archive}`, packedEnv, []);
   for (const requiredPath of [
     'README.md',
     'LICENSE',

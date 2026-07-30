@@ -15,15 +15,15 @@ Requirements:
 Install from npm:
 
 ```bash
-pi install npm:pi-tps-web
+pi install npm:@ryanjoserbrosas/pi-tps-web
 ```
 
-Restart pi or run `/reload`. The npm package includes the prepared dashboard, so `/tps-web` opens without a local build. The package is discoverable in the [Pi package gallery](https://pi.dev/packages/pi-tps-web).
+Restart pi or run `/reload`. The npm package includes the prepared dashboard, so `/tps-web` opens without a local build. The package is discoverable in the [Pi package gallery](https://pi.dev/packages/@ryanjoserbrosas/pi-tps-web).
 
 To pin the repository release instead, install the Git package:
 
 ```bash
-pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.2
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.4
 ```
 
 Live TPS and TTFT data is consumed automatically when compatible `tps` telemetry events are present. Normal Pi history, token usage, and reported cost do not require an additional extension.

@@ -1,6 +1,6 @@
 {
-  "name": "pi-tps-web",
-  "version": "2.0.3",
+  "name": "@ryanjoserbrosas/pi-tps-web",
+  "version": "2.0.4",
   "description": "Local-first pi usage, cost, performance, and PAYG model market dashboard",
   "keywords": [
     "pi-package",

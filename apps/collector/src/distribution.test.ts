@@ -44,7 +44,7 @@ describe('Pi package distribution', () => {
       pi?: { image?: string };
     };
 
-    expect(rootPackage.name).toBe('pi-tps-web');
+    expect(rootPackage.name).toBe('@ryanjoserbrosas/pi-tps-web');
     expect(rootPackage.private).not.toBe(true);
     expect(rootPackage.files).toEqual([
       'apps/collector/scripts/prepare-package.mjs',
@@ -72,6 +72,7 @@ describe('Pi package distribution', () => {
     expect(readme).toContain('## Choose a PAYG route');
     expect(readme).toContain('Lowest PAYG');
     expect(readme).toContain('Fastest qualifying');
+    expect(readme).toContain('pi install npm:@ryanjoserbrosas/pi-tps-web');
   });
 
   it('keeps generated public feed files out of Git', () => {
