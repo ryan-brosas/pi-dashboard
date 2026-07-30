@@ -382,7 +382,7 @@ export function comparePaygDeals(
   performanceCatalog: PerformanceCatalog | null,
   constraints: PaygDealConstraints = {},
 ): PaygDealComparison[] {
-  return compareModelPricing(models.filter((model) => !model.subscription), usage, observedCostUsd)
+  return compareModelPricing(models, usage, observedCostUsd)
     .map((comparison) => ({
       ...comparison,
       performance: performanceCatalog

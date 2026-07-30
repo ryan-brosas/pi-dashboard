@@ -48,6 +48,8 @@ function MarketTableHarness({ models }: { models: PricingModel[] }) {
       provider="all"
       setProvider={() => {}}
       providers={['example']}
+      billing="all"
+      setBilling={() => {}}
       zdrOnly={false}
       setZdrOnly={() => {}}
     />
@@ -221,6 +223,63 @@ describe('MarketWatch', () => {
       minTps.dispatchEvent(new Event('change', { bubbles: true }));
     });
     expect(container.textContent).toContain('No qualifying route in the current catalog and filters.');
+
+    await act(async () => root.unmount());
+  });
+
+  it('searches subscription-capable routes and presents an honest subscription lead', async () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    duckQueryResult = { data: null, loading: false, error: null };
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const subscriptionRoute = {
+      ...pricingModel(0), id: 'acme/sub-model', name: 'Sub Model', provider: 'subscriber',
+      providerDisplay: 'Subscriber', subscription: true, pricing: { input: 0.1, output: 0.2, cacheRead: null, cacheWrite: null },
+    };
+    const meteredRoute = {
+      ...pricingModel(1), id: 'acme/metered-model', name: 'Metered Model', provider: 'metered',
+      providerDisplay: 'Metered', pricing: { input: 0.3, output: 0.6, cacheRead: null, cacheWrite: null },
+    };
+
+    await act(async () => {
+      root.render(
+        <MarketWatch
+          dbVersion={0}
+          pricing={{
+            catalog: { generatedAt: new Date().toISOString(), models: [subscriptionRoute, meteredRoute] },
+            performance: null, fetchedAt: null, loading: false, error: null, refresh: vi.fn(),
+          }}
+        />,
+      );
+    });
+
+    const search = container.querySelector<HTMLInputElement>('input[aria-label="Search model market"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(search, 'subscription');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
+    expect(container.querySelector('tbody')?.textContent).toContain('Subscriber');
+
+    const billing = container.querySelector<HTMLSelectElement>('select[aria-label="Billing option"]')!;
+    expect(billing).not.toBeNull();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(billing, 'subscription');
+      billing.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    const button = (label: string) => [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((candidate) => candidate.textContent?.trim() === label)!;
+    await act(async () => button('PAYG Deals').click());
+    await act(async () => button('Manual estimate').click());
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Monthly fresh input tokens"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '1000000');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Best subscription lead');
+    expect(container.textContent).toContain('Plan price and quotas are not in the catalog');
 
     await act(async () => root.unmount());
   });

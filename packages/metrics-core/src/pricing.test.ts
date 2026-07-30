@@ -162,7 +162,22 @@ describe('pricing catalog', () => {
     });
   });
 
-  it('ranks only PAYG routes that satisfy explicit deal constraints', () => {
+  it('includes subscription-capable routes when their metered pricing qualifies', () => {
+    const pricing = parsePricingCatalog({
+      generated_at: '',
+      models: [
+        { ...catalogPayload.models[0], provider: 'subscription-route', subscription: true, pricing: { input: 0.1, output: 0.2 } },
+        { ...catalogPayload.models[0], provider: 'metered-route', pricing: { input: 0.3, output: 0.6 } },
+      ],
+    });
+    if (!pricing.ok) throw new Error(pricing.error);
+
+    const deals = comparePaygDeals(pricing.catalog.models, usage, null, null);
+
+    expect(deals.map((deal) => deal.model.provider)).toEqual(['subscription-route', 'metered-route']);
+  });
+
+  it('ranks routes that satisfy explicit deal constraints', () => {
     const pricing = parsePricingCatalog({
       generated_at: '',
       models: [

@@ -48,6 +48,7 @@ const LATENCY_OPTIONS = [
 ];
 
 type WatchMode = 'market' | 'payg';
+type BillingOption = 'all' | 'without-subscription' | 'subscription';
 const MARKET_PAGE_SIZE = 100;
 
 function shortModel(id: string): string {
@@ -89,6 +90,7 @@ function MarketWatch({
   const [range, setRange] = useState<UsageRange>('all');
   const [search, setSearch] = useState('');
   const [provider, setProvider] = useState('all');
+  const [billing, setBilling] = useState<BillingOption>('all');
   const [zdrOnly, setZdrOnly] = useState(false);
   const [stablePricingOnly, setStablePricingOnly] = useState(false);
   const [minContextLength, setMinContextLength] = useState(0);
@@ -117,10 +119,16 @@ function MarketWatch({
     const query = search.trim().toLowerCase();
     return catalog.models
       .filter((model) => {
-        const matchesSearch = query.length === 0 || [model.id, model.name, model.org, model.provider]
-          .some((value) => value.toLowerCase().includes(query));
+        const billingTerms = model.subscription
+          ? ['subscription', 'sub', 'coding plan']
+          : ['metered', 'payg'];
+        const matchesSearch = query.length === 0
+          || [model.id, model.name, model.org, model.provider, ...billingTerms]
+            .some((value) => value.toLowerCase().includes(query));
         return matchesSearch
           && (provider === 'all' || model.provider === provider)
+          && (billing === 'all'
+            || (billing === 'subscription' ? model.subscription : !model.subscription))
           && (!zdrOnly || model.zdr);
       })
       .sort((a, b) => {
@@ -128,7 +136,7 @@ function MarketWatch({
         const bPrice = b.pricing.input + b.pricing.output;
         return aPrice - bPrice || a.id.localeCompare(b.id);
       });
-  }, [catalog, provider, search, zdrOnly]);
+  }, [billing, catalog, provider, search, zdrOnly]);
 
   const actualUsageMix = useMemo<TokenUsageMix | null>(() => pricedUsage && pricedUsage.summary.totalCalls > 0 ? {
     inputTokens: pricedUsage.summary.inputTokens,
@@ -209,6 +217,7 @@ function MarketWatch({
   const paygLoading = paygMode && workloadMode === 'actual' && usageLoading;
   const lowestPaygDeal = comparisons[0];
   const constrainedDeal = constrainedComparisons[0];
+  const subscriptionDeal = constrainedComparisons.find((deal) => deal.model.subscription);
   const performanceCovered = constrainedComparisons.filter((deal) =>
     deal.performance?.throughput?.p50 !== null && deal.performance?.throughput?.p50 !== undefined
     || deal.performance?.latency?.p50 !== null && deal.performance?.latency?.p50 !== undefined).length;
@@ -395,7 +404,7 @@ function MarketWatch({
             </label>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <DealCard
               label="Lowest PAYG"
               deal={lowestPaygDeal}
@@ -419,6 +428,11 @@ function MarketWatch({
               label="Fastest qualifying"
               deal={fastestDeal}
               reason="Highest reported median TPS among routes meeting the active constraints."
+            />
+            <DealCard
+              label="Best subscription lead"
+              deal={subscriptionDeal}
+              reason="Lowest projected metered cost among routes whose provider also offers a subscription. Plan price and quotas are not in the catalog, so verify them before subscribing."
             />
           </div>
 
@@ -483,6 +497,8 @@ function MarketWatch({
           provider={provider}
           setProvider={setProvider}
           providers={providers}
+          billing={billing}
+          setBilling={setBilling}
           zdrOnly={zdrOnly}
           setZdrOnly={setZdrOnly}
         />
@@ -508,6 +524,8 @@ interface MarketTableProps {
   provider: string;
   setProvider: (value: string) => void;
   providers: string[];
+  billing: BillingOption;
+  setBilling: (value: BillingOption) => void;
   zdrOnly: boolean;
   setZdrOnly: (value: boolean) => void;
 }
@@ -570,7 +588,7 @@ export function MarketTable(props: MarketTableProps) {
               resetPage();
               props.setSearch(event.target.value);
             }}
-            placeholder="Search models, providers, or organizations"
+            placeholder="Search models, providers, organizations, or subscriptions"
             aria-label="Search model market"
             className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] py-2 pl-8 pr-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
           />
@@ -586,6 +604,19 @@ export function MarketTable(props: MarketTableProps) {
         >
           <option value="all">All providers</option>
           {props.providers.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
+        <select
+          value={props.billing}
+          onChange={(event) => {
+            resetPage();
+            props.setBilling(event.target.value as BillingOption);
+          }}
+          aria-label="Billing option"
+          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+        >
+          <option value="all">All billing options</option>
+          <option value="subscription">Subscription offered</option>
+          <option value="without-subscription">No subscription listed</option>
         </select>
         {props.paygMode && (
           <select
