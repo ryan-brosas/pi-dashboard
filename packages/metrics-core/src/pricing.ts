@@ -63,6 +63,24 @@ export interface PaygDealComparison extends ModelPricingComparison {
   estimatedCachePricing: boolean;
 }
 
+export interface SubscriptionValueInput {
+  monthlyPriceUsd: number;
+  paygEquivalentUsd: number;
+  totalTokens: number;
+}
+
+export interface SubscriptionValue {
+  monthlySavingsUsd: number;
+  valueMultiple: number;
+  breakEvenUsageMultiplier: number | null;
+  breakEvenTokens: number | null;
+  verdict: 'subscription-better' | 'break-even' | 'payg-better';
+}
+
+export type SubscriptionValueResult =
+  | { ok: true; value: SubscriptionValue }
+  | { ok: false; error: string };
+
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -328,6 +346,37 @@ export function findPricingModel(
   modelId: string,
 ): PricingModel | null {
   return resolvePricingModel(models, provider, modelId)?.model ?? null;
+}
+
+export function calculateSubscriptionValue(input: SubscriptionValueInput): SubscriptionValueResult {
+  if (!Number.isFinite(input.monthlyPriceUsd) || input.monthlyPriceUsd <= 0) {
+    return { ok: false, error: 'Subscription price must be greater than zero' };
+  }
+  if (!Number.isFinite(input.paygEquivalentUsd) || input.paygEquivalentUsd < 0) {
+    return { ok: false, error: 'PAYG equivalent must be zero or greater' };
+  }
+  if (!Number.isFinite(input.totalTokens) || input.totalTokens < 0) {
+    return { ok: false, error: 'Token usage must be zero or greater' };
+  }
+
+  const monthlySavingsUsd = input.paygEquivalentUsd - input.monthlyPriceUsd;
+  const breakEvenUsageMultiplier = input.paygEquivalentUsd > 0
+    ? input.monthlyPriceUsd / input.paygEquivalentUsd
+    : null;
+  return {
+    ok: true,
+    value: {
+      monthlySavingsUsd,
+      valueMultiple: input.paygEquivalentUsd / input.monthlyPriceUsd,
+      breakEvenUsageMultiplier,
+      breakEvenTokens: breakEvenUsageMultiplier === null
+        ? null
+        : input.totalTokens * breakEvenUsageMultiplier,
+      verdict: monthlySavingsUsd > 0
+        ? 'subscription-better'
+        : monthlySavingsUsd === 0 ? 'break-even' : 'payg-better',
+    },
+  };
 }
 
 function tokenCost(tokens: number, ratePerMillion: number): number {

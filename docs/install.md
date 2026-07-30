@@ -45,7 +45,7 @@ The npm package includes the prepared dashboard, so the command opens without a 
 To pin the repository release instead, install the Git package:
 
 ```bash
-pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.5
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.6
 ```
 
 Pi prepares a Git install with the repository-pinned pnpm version. Later invocations reuse that build.
@@ -74,7 +74,7 @@ Restart Pi or run `/reload` afterward.
 Use a checkout when developing the dashboard or running the hourly relay:
 
 ```bash
-git clone --branch v2.0.5 https://github.com/ryan-brosas/pi-dashboard.git
+git clone --branch v2.0.6 https://github.com/ryan-brosas/pi-dashboard.git
 cd pi-dashboard
 corepack enable
 pnpm install --frozen-lockfile

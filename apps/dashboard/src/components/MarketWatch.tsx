@@ -6,7 +6,7 @@ import {
   Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import {
-  canonicalPerformanceModelId, comparePaygDeals, formatCurrency, formatNumber, resolvePricingModel,
+  calculateSubscriptionValue, canonicalPerformanceModelId, comparePaygDeals, formatCurrency, formatNumber, resolvePricingModel,
   type PaygDealComparison, type PricingModel, type TokenUsageMix,
 } from '@pi-tps/metrics-core';
 import { useDuckQuery } from '../hooks/useDuckQuery';
@@ -47,8 +47,40 @@ const LATENCY_OPTIONS = [
   { value: 5_000, label: '≤5s' },
 ];
 
-type WatchMode = 'market' | 'payg';
+type WatchMode = 'market' | 'payg' | 'subscription';
 type BillingOption = 'all' | 'without-subscription' | 'subscription';
+
+interface SubscriptionPlanPreset {
+  id: string;
+  name: string;
+  monthlyPriceUsd: number;
+  limitNote: string;
+  sourceUrl: string | null;
+}
+
+const SUBSCRIPTION_PLANS: SubscriptionPlanPreset[] = [
+  {
+    id: 'claude-pro',
+    name: 'Claude Pro',
+    monthlyPriceUsd: 20,
+    limitNote: 'At least 5× Free usage per five-hour session; additional weekly, monthly, model, and feature caps may apply.',
+    sourceUrl: 'https://www.anthropic.com/pricing',
+  },
+  {
+    id: 'claude-max-5x',
+    name: 'Claude Max 5×',
+    monthlyPriceUsd: 100,
+    limitNote: '5× Pro usage per five-hour session with higher output limits; additional caps may apply.',
+    sourceUrl: 'https://www.anthropic.com/pricing',
+  },
+  {
+    id: 'custom',
+    name: 'Custom plan',
+    monthlyPriceUsd: 20,
+    limitNote: 'Enter the current fee and verify the plan’s model access, quotas, and rate limits.',
+    sourceUrl: null,
+  },
+];
 const MARKET_PAGE_SIZE = 100;
 
 function shortModel(id: string): string {
@@ -57,6 +89,10 @@ function shortModel(id: string): string {
 
 function rate(value: number | null): string {
   return value === null ? '—' : `$${value.toFixed(value < 1 ? 3 : 2)}`;
+}
+
+function monthlyCurrency(value: number): string {
+  return `$${value.toFixed(2)}`;
 }
 
 function context(value: number | null): string {
@@ -214,10 +250,11 @@ function MarketWatch({
 
   const paygAvailable = usageMix !== null;
   const paygMode = mode === 'payg';
-  const paygLoading = paygMode && workloadMode === 'actual' && usageLoading;
+  const subscriptionMode = mode === 'subscription';
+  const dealMode = paygMode || subscriptionMode;
+  const paygLoading = dealMode && workloadMode === 'actual' && usageLoading;
   const lowestPaygDeal = comparisons[0];
   const constrainedDeal = constrainedComparisons[0];
-  const subscriptionDeal = constrainedComparisons.find((deal) => deal.model.subscription);
   const performanceCovered = constrainedComparisons.filter((deal) =>
     deal.performance?.throughput?.p50 !== null && deal.performance?.throughput?.p50 !== undefined
     || deal.performance?.latency?.p50 !== null && deal.performance?.latency?.p50 !== undefined).length;
@@ -258,12 +295,16 @@ function MarketWatch({
             <Binoculars size={13} weight="bold" /> Independent model market
           </div>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-            {paygMode ? 'Choose the best PAYG route for your workload' : 'Search models and provider pricing'}
+            {subscriptionMode
+              ? 'Measure subscription value against PAYG'
+              : paygMode ? 'Choose the best PAYG route for your workload' : 'Search models and provider pricing'}
           </h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[var(--text-secondary)]">
-            {paygMode
-              ? 'Compare pay-as-you-go routes using actual history or a manual monthly token estimate.'
-              : 'Explore pricing, context limits, privacy options, discounts, and subscriptions without uploading telemetry.'}
+            {subscriptionMode
+              ? 'See the monthly fee, PAYG-equivalent value, savings, and exact workload needed to break even.'
+              : paygMode
+                ? 'Compare pay-as-you-go routes using actual history or a manual monthly token estimate.'
+                : 'Explore pricing, context limits, privacy options, discounts, and subscriptions without uploading telemetry.'}
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -284,6 +325,17 @@ function MarketWatch({
             >
               <TrendDown size={11} weight="bold" /> PAYG Deals
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('subscription');
+                setRange('month');
+              }}
+              aria-pressed={mode === 'subscription'}
+              className={`rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'subscription' ? 'bg-violet-500/10 text-violet-500' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
+            >
+              Subscription Value
+            </button>
           </div>
           <span className="text-[10px] text-[var(--text-tertiary)]">{freshness(catalog.generatedAt, fetchedAt)}</span>
           <button
@@ -303,7 +355,7 @@ function MarketWatch({
         </div>
       )}
 
-      {paygMode && (
+      {dealMode && (
         <WorkloadControls
           mode={workloadMode}
           setMode={setWorkloadMode}
@@ -314,18 +366,18 @@ function MarketWatch({
         />
       )}
 
-      {paygMode && workloadMode === 'actual' && usageError && (
+      {dealMode && workloadMode === 'actual' && usageError && (
         <div role="alert" className="rounded-xl border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
       )}
 
-      {paygMode && workloadMode === 'actual' && pricedUsage && (pricedUsage.summary.estimatedModelCount > 0 || pricedUsage.summary.unpricedModelCount > 0) && (
+      {dealMode && workloadMode === 'actual' && pricedUsage && (pricedUsage.summary.estimatedModelCount > 0 || pricedUsage.summary.unpricedModelCount > 0) && (
         <div className="rounded-xl border border-accent/15 bg-accent/5 px-4 py-3 text-[11px] text-zinc-500 dark:text-zinc-400">
           {pricedUsage.summary.estimatedModelCount > 0 && `${pricedUsage.summary.estimatedModelCount} observed route${pricedUsage.summary.estimatedModelCount === 1 ? '' : 's'} use market catalog pricing.`}
           {pricedUsage.summary.unpricedModelCount > 0 && ` ${pricedUsage.summary.unpricedModelCount} route${pricedUsage.summary.unpricedModelCount === 1 ? '' : 's'} remain unpriced.`}
         </div>
       )}
 
-      {paygMode && !paygAvailable && !paygLoading && (
+      {dealMode && !paygAvailable && !paygLoading && (
         <div role="status" className="card-surface flex flex-wrap items-center justify-between gap-3 p-5">
           <div>
             <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
@@ -333,7 +385,7 @@ function MarketWatch({
             </p>
             <p className="mt-1 text-xs text-zinc-400">
               {workloadMode === 'manual'
-                ? 'Add at least one token category above to calculate PAYG routes.'
+                ? 'Add at least one token category above to calculate route and subscription value.'
                 : 'Use a manual estimate, connect the collector, or upload telemetry.'}
             </p>
           </div>
@@ -348,8 +400,14 @@ function MarketWatch({
           role="status"
           className="card-surface grid min-h-[350px] place-items-center p-6 text-sm text-[var(--text-tertiary)]"
         >
-          Loading PAYG deals for the selected range…
+          {subscriptionMode ? 'Loading subscription value for the current month…' : 'Loading PAYG deals for the selected range…'}
         </div>
+      ) : subscriptionMode && paygAvailable ? (
+        <SubscriptionValuePanel
+          benchmark={constrainedDeal ?? lowestPaygDeal}
+          totalTokens={totalTokens}
+          workloadMode={workloadMode}
+        />
       ) : paygMode && paygAvailable ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -404,7 +462,7 @@ function MarketWatch({
             </label>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <DealCard
               label="Lowest PAYG"
               deal={lowestPaygDeal}
@@ -428,11 +486,6 @@ function MarketWatch({
               label="Fastest qualifying"
               deal={fastestDeal}
               reason="Highest reported median TPS among routes meeting the active constraints."
-            />
-            <DealCard
-              label="Best subscription lead"
-              deal={subscriptionDeal}
-              reason="Lowest projected metered cost among routes whose provider also offers a subscription. Plan price and quotas are not in the catalog, so verify them before subscribing."
             />
           </div>
 
@@ -486,7 +539,7 @@ function MarketWatch({
 
       {!paygLoading && (
         <MarketTable
-          key={paygMode ? 'payg' : 'market'}
+          key={mode}
           models={paygMode && paygAvailable ? constrainedComparisons.map((row) => row.model) : filteredModels}
           comparisons={paygMode && paygAvailable ? constrainedComparisons : []}
           observedModels={observedModels}
@@ -703,6 +756,116 @@ export function MarketTable(props: MarketTableProps) {
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function SubscriptionValuePanel({
+  benchmark, totalTokens, workloadMode,
+}: {
+  benchmark: PaygDealComparison | undefined;
+  totalTokens: number;
+  workloadMode: 'actual' | 'manual';
+}) {
+  const [planId, setPlanId] = useState(SUBSCRIPTION_PLANS[0]!.id);
+  const [monthlyPriceUsd, setMonthlyPriceUsd] = useState(SUBSCRIPTION_PLANS[0]!.monthlyPriceUsd);
+  const plan = SUBSCRIPTION_PLANS.find((candidate) => candidate.id === planId) ?? SUBSCRIPTION_PLANS[0]!;
+  const result = benchmark
+    ? calculateSubscriptionValue({
+      monthlyPriceUsd,
+      paygEquivalentUsd: benchmark.totalCostUsd,
+      totalTokens,
+    })
+    : null;
+
+  const value = result?.ok ? result.value : null;
+  const verdict = value?.verdict ?? null;
+  const verdictText = !value
+    ? null
+    : value.verdict === 'subscription-better'
+      ? `Save ${monthlyCurrency(value.monthlySavingsUsd)} if the plan fully covers this workload.`
+      : value.verdict === 'break-even'
+        ? 'This workload is exactly at the subscription break-even point.'
+        : `PAYG is cheaper now. Reach ${value.breakEvenUsageMultiplier?.toFixed(2)}× this workload to break even.`;
+
+  return (
+    <div className="space-y-4">
+      <div className="card-surface p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-500">Subscription value</p>
+            <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">How much usage makes the monthly fee worthwhile?</h3>
+            <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+              Compare a plan fee with the cheapest qualifying PAYG route for the same token mix.
+              {workloadMode === 'actual' ? ' Actual usage is scoped to the current month.' : ' Manual usage is treated as a monthly estimate.'}
+            </p>
+          </div>
+          <div className="grid min-w-[280px] gap-2 sm:grid-cols-2">
+            <label className="text-[9px] text-[var(--text-tertiary)]">
+              <span className="mb-1 block">Plan preset</span>
+              <select
+                aria-label="Subscription plan"
+                value={planId}
+                onChange={(event) => {
+                  const selected = SUBSCRIPTION_PLANS.find((candidate) => candidate.id === event.target.value);
+                  if (!selected) return;
+                  setPlanId(selected.id);
+                  setMonthlyPriceUsd(selected.monthlyPriceUsd);
+                }}
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+              >
+                {SUBSCRIPTION_PLANS.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-[9px] text-[var(--text-tertiary)]">
+              <span className="mb-1 block">Monthly fee in USD</span>
+              <input
+                aria-label="Monthly subscription price"
+                type="number"
+                min="0.01"
+                step="1"
+                value={monthlyPriceUsd}
+                onChange={(event) => setMonthlyPriceUsd(Number(event.target.value))}
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {benchmark && value ? (
+        <>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+            <WatchMetric label="Plan fee" value={monthlyCurrency(monthlyPriceUsd)} />
+            <WatchMetric label="PAYG equivalent" value={monthlyCurrency(benchmark.totalCostUsd)} accent />
+            <WatchMetric label="Value multiple" value={`${value.valueMultiple.toFixed(2)}×`} />
+            <WatchMetric label="Break-even workload" value={value.breakEvenUsageMultiplier === null ? '—' : `${value.breakEvenUsageMultiplier.toFixed(2)}×`} />
+            <WatchMetric label="Break-even tokens" value={value.breakEvenTokens === null ? '—' : formatNumber(value.breakEvenTokens)} />
+            <WatchMetric label="Current verdict" value={verdict === 'subscription-better' ? 'Subscription' : verdict === 'break-even' ? 'Even' : 'PAYG'} />
+          </div>
+          <div className={`card-surface border-l-2 p-4 ${verdict === 'subscription-better' ? 'border-l-moss' : verdict === 'break-even' ? 'border-l-amber-500' : 'border-l-accent'}`}>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{verdictText}</p>
+            <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
+              PAYG benchmark: {benchmark.model.providerDisplay} · {shortModel(benchmark.model.id)} at {rate(benchmark.blendedRateUsdPerM)} per million blended tokens.
+            </p>
+            <p className="mt-3 text-[10px] leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
+              Usage caps are not expressed as token allowances in the market catalog. This value assumes the plan includes the selected models and fully covers the workload without throttling or overage charges.
+            </p>
+            {plan.sourceUrl && (
+              <a className="mt-2 inline-block text-[10px] font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">
+                Verify current plan terms
+              </a>
+            )}
+          </div>
+        </>
+      ) : benchmark ? (
+        <div role="alert" className="card-surface p-4 text-xs text-ember">{result && !result.ok ? result.error : 'Subscription comparison is unavailable.'}</div>
+      ) : (
+        <div role="status" className="card-surface p-5 text-xs text-[var(--text-tertiary)]">No qualifying PAYG route is available for this workload and the active filters.</div>
       )}
     </div>
   );

@@ -23,7 +23,7 @@ Restart pi or run `/reload`. The npm package includes the prepared dashboard, so
 To pin the repository release instead, install the Git package:
 
 ```bash
-pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.5
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.6
 ```
 
 Live TPS and TTFT data is consumed automatically when compatible `tps` telemetry events are present. Normal Pi history, token usage, and reported cost do not require an additional extension.
@@ -50,9 +50,9 @@ The shortlist keeps each tradeoff explicit instead of hiding it in a composite s
 - **Best same-model switch** — another provider for the dominant observed model family
 - **Best under constraints** — cheapest route meeting the active requirements
 - **Fastest qualifying** — highest reported median TPS among qualifying routes
-- **Best subscription lead** — lowest projected metered cost among routes whose provider also advertises a subscription or coding plan
+- **Subscription Value** — compares a monthly plan fee with the PAYG-equivalent workload and calculates savings, value multiple, break-even workload, and break-even tokens
 
-Constrain routes by context size, uptime, TPS, latency, ZDR, provider, billing option, and stable pricing. Search recognizes subscription and metered terms. Missing measurements cannot satisfy an enabled constraint, and the dashboard reports performance-data coverage before making speed-first recommendations. Subscription recommendations use the route’s metered prices because the catalog does not include plan fees or quotas; verify those terms before subscribing. Sort the detailed table by projected cost, TPS, latency, or uptime.
+Constrain routes by context size, uptime, TPS, latency, ZDR, provider, billing option, and stable pricing. Search recognizes subscription and metered terms. Missing measurements cannot satisfy an enabled constraint, and the dashboard reports performance-data coverage before making speed-first recommendations. Subscription Value includes current Claude plan presets plus a manual fee override. It uses current-month history or a manual monthly workload, benchmarks against the cheapest qualifying PAYG route, and states exactly how much usage reaches break-even. Because provider caps are not published as token allowances, it never assumes a plan can cover the workload; verify model access, quotas, throttling, and overage terms first. Sort the detailed table by projected cost, TPS, latency, or uptime.
 
 ## Run from source
 

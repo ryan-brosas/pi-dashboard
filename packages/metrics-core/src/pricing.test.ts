@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  compareModelPricing, comparePaygDeals, estimateModelCost, findModelPerformance, findPricingModel,
+  calculateSubscriptionValue, compareModelPricing, comparePaygDeals, estimateModelCost, findModelPerformance, findPricingModel,
   findPricingPerformance, parsePerformanceCatalog, parsePricingCatalog, resolvePricingModel,
   type TokenUsageMix,
 } from './pricing';
@@ -160,6 +160,33 @@ describe('pricing catalog', () => {
       ok: false,
       error: 'Performance catalog contains no valid route records',
     });
+  });
+
+  it('calculates subscription savings, value multiple, and break-even usage', () => {
+    expect(calculateSubscriptionValue({
+      monthlyPriceUsd: 20, paygEquivalentUsd: 50, totalTokens: 10_000_000,
+    })).toEqual({
+      ok: true,
+      value: {
+        monthlySavingsUsd: 30,
+        valueMultiple: 2.5,
+        breakEvenUsageMultiplier: 0.4,
+        breakEvenTokens: 4_000_000,
+        verdict: 'subscription-better',
+      },
+    });
+    expect(calculateSubscriptionValue({
+      monthlyPriceUsd: 20, paygEquivalentUsd: 10, totalTokens: 10_000_000,
+    })).toMatchObject({
+      ok: true,
+      value: { monthlySavingsUsd: -10, valueMultiple: 0.5, breakEvenUsageMultiplier: 2, verdict: 'payg-better' },
+    });
+  });
+
+  it('rejects subscription comparisons without a positive monthly fee', () => {
+    expect(calculateSubscriptionValue({
+      monthlyPriceUsd: 0, paygEquivalentUsd: 10, totalTokens: 1_000_000,
+    })).toEqual({ ok: false, error: 'Subscription price must be greater than zero' });
   });
 
   it('includes subscription-capable routes when their metered pricing qualifies', () => {

@@ -227,18 +227,18 @@ describe('MarketWatch', () => {
     await act(async () => root.unmount());
   });
 
-  it('searches subscription-capable routes and presents an honest subscription lead', async () => {
+  it('searches subscription-capable routes and calculates honest subscription value', async () => {
     const container = document.createElement('div');
     const root = createRoot(container);
     duckQueryResult = { data: null, loading: false, error: null };
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const subscriptionRoute = {
       ...pricingModel(0), id: 'acme/sub-model', name: 'Sub Model', provider: 'subscriber',
-      providerDisplay: 'Subscriber', subscription: true, pricing: { input: 0.1, output: 0.2, cacheRead: null, cacheWrite: null },
+      providerDisplay: 'Subscriber', subscription: true, pricing: { input: 50, output: 100, cacheRead: null, cacheWrite: null },
     };
     const meteredRoute = {
       ...pricingModel(1), id: 'acme/metered-model', name: 'Metered Model', provider: 'metered',
-      providerDisplay: 'Metered', pricing: { input: 0.3, output: 0.6, cacheRead: null, cacheWrite: null },
+      providerDisplay: 'Metered', pricing: { input: 100, output: 200, cacheRead: null, cacheWrite: null },
     };
 
     await act(async () => {
@@ -270,7 +270,7 @@ describe('MarketWatch', () => {
 
     const button = (label: string) => [...container.querySelectorAll<HTMLButtonElement>('button')]
       .find((candidate) => candidate.textContent?.trim() === label)!;
-    await act(async () => button('PAYG Deals').click());
+    await act(async () => button('Subscription Value').click());
     await act(async () => button('Manual estimate').click());
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Monthly fresh input tokens"]')!;
     await act(async () => {
@@ -278,8 +278,26 @@ describe('MarketWatch', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    expect(container.textContent).toContain('Best subscription lead');
-    expect(container.textContent).toContain('Plan price and quotas are not in the catalog');
+    expect(container.textContent).toContain('Subscription value');
+    expect(container.querySelector('select[aria-label="Subscription plan"]')).not.toBeNull();
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Monthly subscription price"]')?.value).toBe('20');
+    expect(container.textContent).toContain('$50.00');
+    expect(container.textContent).toContain('2.50×');
+    expect(container.textContent).toContain('400K');
+    expect(container.textContent).toContain('Save $30.00 if the plan fully covers this workload');
+    expect(container.textContent).toContain('Usage caps are not expressed as token allowances');
+
+    const plan = container.querySelector<HTMLSelectElement>('select[aria-label="Subscription plan"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(plan, 'custom');
+      plan.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const monthlyPrice = container.querySelector<HTMLInputElement>('input[aria-label="Monthly subscription price"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(monthlyPrice, '100');
+      monthlyPrice.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.textContent).toContain('PAYG is cheaper now. Reach 2.00× this workload to break even.');
 
     await act(async () => root.unmount());
   });
