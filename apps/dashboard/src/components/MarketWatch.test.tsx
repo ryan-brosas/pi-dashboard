@@ -233,8 +233,8 @@ describe('MarketWatch', () => {
     duckQueryResult = { data: null, loading: false, error: null };
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const subscriptionRoute = {
-      ...pricingModel(0), id: 'acme/sub-model', name: 'Sub Model', provider: 'subscriber',
-      providerDisplay: 'Subscriber', subscription: true, pricing: { input: 50, output: 100, cacheRead: null, cacheWrite: null },
+      ...pricingModel(0), id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5', org: 'anthropic', provider: 'anthropic',
+      providerDisplay: 'Anthropic', subscription: true, pricing: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
     };
     const meteredRoute = {
       ...pricingModel(1), id: 'acme/metered-model', name: 'Metered Model', provider: 'metered',
@@ -259,7 +259,7 @@ describe('MarketWatch', () => {
       search.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
-    expect(container.querySelector('tbody')?.textContent).toContain('Subscriber');
+    expect(container.querySelector('tbody')?.textContent).toContain('Anthropic');
 
     const billing = container.querySelector<HTMLSelectElement>('select[aria-label="Billing option"]')!;
     expect(billing).not.toBeNull();
@@ -271,20 +271,30 @@ describe('MarketWatch', () => {
     const button = (label: string) => [...container.querySelectorAll<HTMLButtonElement>('button')]
       .find((candidate) => candidate.textContent?.trim() === label)!;
     await act(async () => button('Subscription Value').click());
-    await act(async () => button('Manual estimate').click());
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Monthly fresh input tokens"]')!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '1000000');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    expect(container.textContent).not.toContain('Actual usage');
+    expect(container.textContent).not.toContain('Market routes');
+    expect(container.querySelector('table')).toBeNull();
+    expect(container.querySelector('input[aria-label="Monthly fresh input tokens"]')).toBeNull();
 
     expect(container.textContent).toContain('Subscription value');
     expect(container.querySelector('select[aria-label="Subscription plan"]')).not.toBeNull();
+    expect(container.querySelector('select[aria-label="Subscription reference model"]')).not.toBeNull();
     expect(container.querySelector<HTMLInputElement>('input[aria-label="Monthly subscription price"]')?.value).toBe('20');
-    expect(container.textContent).toContain('$50.00');
-    expect(container.textContent).toContain('2.50×');
-    expect(container.textContent).toContain('400K');
-    expect(container.textContent).toContain('Save $30.00 if the plan fully covers this workload');
+    const inputShare = container.querySelector<HTMLInputElement>('input[aria-label="Input token share"]')!;
+    expect(inputShare.value).toBe('80');
+    expect(container.textContent).toContain('$1.00 input');
+    expect(container.textContent).toContain('$5.00 output');
+    expect(container.textContent).toContain('$1.80');
+    expect(container.textContent).toContain('11.1M');
+    expect(container.textContent).toContain('8.9M input');
+    expect(container.textContent).toContain('2.2M output');
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(inputShare, '50');
+      inputShare.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.textContent).toContain('$3.00');
+    expect(container.textContent).toContain('6.7M');
     expect(container.textContent).toContain('Usage caps are not expressed as token allowances');
 
     const plan = container.querySelector<HTMLSelectElement>('select[aria-label="Subscription plan"]')!;
@@ -297,7 +307,7 @@ describe('MarketWatch', () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(monthlyPrice, '100');
       monthlyPrice.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(container.textContent).toContain('PAYG is cheaper now. Reach 2.00× this workload to break even.');
+    expect(container.textContent).toContain('33.3M');
 
     await act(async () => root.unmount());
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  calculateSubscriptionValue, compareModelPricing, comparePaygDeals, estimateModelCost, findModelPerformance, findPricingModel,
+  calculateSubscriptionBreakEven, calculateSubscriptionValue, compareModelPricing, comparePaygDeals, estimateModelCost, findModelPerformance, findPricingModel,
   findPricingPerformance, parsePerformanceCatalog, parsePricingCatalog, resolvePricingModel,
   type TokenUsageMix,
 } from './pricing';
@@ -160,6 +160,23 @@ describe('pricing catalog', () => {
       ok: false,
       error: 'Performance catalog contains no valid route records',
     });
+  });
+
+  it('calculates subscription break-even using separate input and output prices', () => {
+    const result = calculateSubscriptionBreakEven({
+      monthlyPriceUsd: 20, inputRateUsdPerM: 1, outputRateUsdPerM: 5, inputShare: 0.8,
+    });
+    expect(result).toMatchObject({ ok: true, value: { blendedRateUsdPerM: 1.8 } });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.breakEvenTokens).toBeCloseTo(11_111_111.11, 2);
+    expect(result.value.breakEvenInputTokens).toBeCloseTo(8_888_888.89, 2);
+    expect(result.value.breakEvenOutputTokens).toBeCloseTo(2_222_222.22, 2);
+  });
+
+  it('rejects an invalid subscription input share', () => {
+    expect(calculateSubscriptionBreakEven({
+      monthlyPriceUsd: 20, inputRateUsdPerM: 1, outputRateUsdPerM: 5, inputShare: 1.2,
+    })).toEqual({ ok: false, error: 'Input share must be between zero and one' });
   });
 
   it('calculates subscription savings, value multiple, and break-even usage', () => {

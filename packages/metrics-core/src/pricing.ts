@@ -63,6 +63,24 @@ export interface PaygDealComparison extends ModelPricingComparison {
   estimatedCachePricing: boolean;
 }
 
+export interface SubscriptionBreakEvenInput {
+  monthlyPriceUsd: number;
+  inputRateUsdPerM: number;
+  outputRateUsdPerM: number;
+  inputShare: number;
+}
+
+export interface SubscriptionBreakEven {
+  blendedRateUsdPerM: number;
+  breakEvenTokens: number;
+  breakEvenInputTokens: number;
+  breakEvenOutputTokens: number;
+}
+
+export type SubscriptionBreakEvenResult =
+  | { ok: true; value: SubscriptionBreakEven }
+  | { ok: false; error: string };
+
 export interface SubscriptionValueInput {
   monthlyPriceUsd: number;
   paygEquivalentUsd: number;
@@ -346,6 +364,37 @@ export function findPricingModel(
   modelId: string,
 ): PricingModel | null {
   return resolvePricingModel(models, provider, modelId)?.model ?? null;
+}
+
+export function calculateSubscriptionBreakEven(input: SubscriptionBreakEvenInput): SubscriptionBreakEvenResult {
+  if (!Number.isFinite(input.monthlyPriceUsd) || input.monthlyPriceUsd <= 0) {
+    return { ok: false, error: 'Subscription price must be greater than zero' };
+  }
+  if (!Number.isFinite(input.inputShare) || input.inputShare < 0 || input.inputShare > 1) {
+    return { ok: false, error: 'Input share must be between zero and one' };
+  }
+  if (!Number.isFinite(input.inputRateUsdPerM) || input.inputRateUsdPerM < 0
+    || !Number.isFinite(input.outputRateUsdPerM) || input.outputRateUsdPerM < 0) {
+    return { ok: false, error: 'Input and output rates must be zero or greater' };
+  }
+
+  const outputShare = 1 - input.inputShare;
+  const blendedRateUsdPerM = Number((
+    input.inputRateUsdPerM * input.inputShare + input.outputRateUsdPerM * outputShare
+  ).toFixed(12));
+  if (blendedRateUsdPerM <= 0) {
+    return { ok: false, error: 'Blended token rate must be greater than zero' };
+  }
+  const breakEvenTokens = input.monthlyPriceUsd / blendedRateUsdPerM * 1_000_000;
+  return {
+    ok: true,
+    value: {
+      blendedRateUsdPerM,
+      breakEvenTokens,
+      breakEvenInputTokens: breakEvenTokens * input.inputShare,
+      breakEvenOutputTokens: breakEvenTokens * outputShare,
+    },
+  };
 }
 
 export function calculateSubscriptionValue(input: SubscriptionValueInput): SubscriptionValueResult {

@@ -6,7 +6,7 @@ import {
   Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import {
-  calculateSubscriptionValue, canonicalPerformanceModelId, comparePaygDeals, formatCurrency, formatNumber, resolvePricingModel,
+  calculateSubscriptionBreakEven, canonicalPerformanceModelId, comparePaygDeals, formatCurrency, formatNumber, resolvePricingModel,
   type PaygDealComparison, type PricingModel, type TokenUsageMix,
 } from '@pi-tps/metrics-core';
 import { useDuckQuery } from '../hooks/useDuckQuery';
@@ -251,8 +251,7 @@ function MarketWatch({
   const paygAvailable = usageMix !== null;
   const paygMode = mode === 'payg';
   const subscriptionMode = mode === 'subscription';
-  const dealMode = paygMode || subscriptionMode;
-  const paygLoading = dealMode && workloadMode === 'actual' && usageLoading;
+  const paygLoading = paygMode && workloadMode === 'actual' && usageLoading;
   const lowestPaygDeal = comparisons[0];
   const constrainedDeal = constrainedComparisons[0];
   const performanceCovered = constrainedComparisons.filter((deal) =>
@@ -329,7 +328,6 @@ function MarketWatch({
               type="button"
               onClick={() => {
                 setMode('subscription');
-                setRange('month');
               }}
               aria-pressed={mode === 'subscription'}
               className={`rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'subscription' ? 'bg-violet-500/10 text-violet-500' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
@@ -355,7 +353,7 @@ function MarketWatch({
         </div>
       )}
 
-      {dealMode && (
+      {paygMode && (
         <WorkloadControls
           mode={workloadMode}
           setMode={setWorkloadMode}
@@ -366,18 +364,18 @@ function MarketWatch({
         />
       )}
 
-      {dealMode && workloadMode === 'actual' && usageError && (
+      {paygMode && workloadMode === 'actual' && usageError && (
         <div role="alert" className="rounded-xl border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
       )}
 
-      {dealMode && workloadMode === 'actual' && pricedUsage && (pricedUsage.summary.estimatedModelCount > 0 || pricedUsage.summary.unpricedModelCount > 0) && (
+      {paygMode && workloadMode === 'actual' && pricedUsage && (pricedUsage.summary.estimatedModelCount > 0 || pricedUsage.summary.unpricedModelCount > 0) && (
         <div className="rounded-xl border border-accent/15 bg-accent/5 px-4 py-3 text-[11px] text-zinc-500 dark:text-zinc-400">
           {pricedUsage.summary.estimatedModelCount > 0 && `${pricedUsage.summary.estimatedModelCount} observed route${pricedUsage.summary.estimatedModelCount === 1 ? '' : 's'} use market catalog pricing.`}
           {pricedUsage.summary.unpricedModelCount > 0 && ` ${pricedUsage.summary.unpricedModelCount} route${pricedUsage.summary.unpricedModelCount === 1 ? '' : 's'} remain unpriced.`}
         </div>
       )}
 
-      {dealMode && !paygAvailable && !paygLoading && (
+      {paygMode && !paygAvailable && !paygLoading && (
         <div role="status" className="card-surface flex flex-wrap items-center justify-between gap-3 p-5">
           <div>
             <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
@@ -402,12 +400,8 @@ function MarketWatch({
         >
           {subscriptionMode ? 'Loading subscription value for the current month…' : 'Loading PAYG deals for the selected range…'}
         </div>
-      ) : subscriptionMode && paygAvailable ? (
-        <SubscriptionValuePanel
-          benchmark={constrainedDeal ?? lowestPaygDeal}
-          totalTokens={totalTokens}
-          workloadMode={workloadMode}
-        />
+      ) : subscriptionMode ? (
+        <SubscriptionValuePanel models={catalog.models} />
       ) : paygMode && paygAvailable ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -537,7 +531,7 @@ function MarketWatch({
         </div>
       )}
 
-      {!paygLoading && (
+      {!paygLoading && !subscriptionMode && (
         <MarketTable
           key={mode}
           models={paygMode && paygAvailable ? constrainedComparisons.map((row) => row.model) : filteredModels}
@@ -761,33 +755,37 @@ export function MarketTable(props: MarketTableProps) {
   );
 }
 
-function SubscriptionValuePanel({
-  benchmark, totalTokens, workloadMode,
-}: {
-  benchmark: PaygDealComparison | undefined;
-  totalTokens: number;
-  workloadMode: 'actual' | 'manual';
-}) {
+function SubscriptionValuePanel({ models }: { models: PricingModel[] }) {
+  const referenceModels = useMemo(() => {
+    const directClaudeRoutes = models.filter((model) =>
+      model.provider === 'anthropic'
+      && model.id.startsWith('anthropic/claude-')
+      && !model.id.includes(':batch')
+      && !model.id.includes('-fast'));
+    return ['haiku', 'sonnet', 'opus'].flatMap((tier) => {
+      const candidates = directClaudeRoutes
+        .filter((model) => model.id.includes(tier))
+        .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
+      return candidates.slice(0, 1);
+    });
+  }, [models]);
+  const defaultReference = referenceModels.find((model) => model.id.includes('sonnet')) ?? referenceModels[0];
+  const [referenceId, setReferenceId] = useState('');
   const [planId, setPlanId] = useState(SUBSCRIPTION_PLANS[0]!.id);
   const [monthlyPriceUsd, setMonthlyPriceUsd] = useState(SUBSCRIPTION_PLANS[0]!.monthlyPriceUsd);
+  const [inputSharePercent, setInputSharePercent] = useState(80);
   const plan = SUBSCRIPTION_PLANS.find((candidate) => candidate.id === planId) ?? SUBSCRIPTION_PLANS[0]!;
-  const result = benchmark
-    ? calculateSubscriptionValue({
+  const reference = referenceModels.find((model) => model.id === referenceId) ?? defaultReference;
+  const result = reference
+    ? calculateSubscriptionBreakEven({
       monthlyPriceUsd,
-      paygEquivalentUsd: benchmark.totalCostUsd,
-      totalTokens,
+      inputRateUsdPerM: reference.pricing.input,
+      outputRateUsdPerM: reference.pricing.output,
+      inputShare: inputSharePercent / 100,
     })
     : null;
-
   const value = result?.ok ? result.value : null;
-  const verdict = value?.verdict ?? null;
-  const verdictText = !value
-    ? null
-    : value.verdict === 'subscription-better'
-      ? `Save ${monthlyCurrency(value.monthlySavingsUsd)} if the plan fully covers this workload.`
-      : value.verdict === 'break-even'
-        ? 'This workload is exactly at the subscription break-even point.'
-        : `PAYG is cheaper now. Reach ${value.breakEvenUsageMultiplier?.toFixed(2)}× this workload to break even.`;
+  const outputSharePercent = 100 - inputSharePercent;
 
   return (
     <div className="space-y-4">
@@ -795,13 +793,12 @@ function SubscriptionValuePanel({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-500">Subscription value</p>
-            <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">How much usage makes the monthly fee worthwhile?</h3>
+            <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">How many tokens make the monthly fee worthwhile?</h3>
             <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
-              Compare a plan fee with the cheapest qualifying PAYG route for the same token mix.
-              {workloadMode === 'actual' ? ' Actual usage is scoped to the current month.' : ' Manual usage is treated as a monthly estimate.'}
+              Compare the plan fee with direct API pricing for a Claude model. Input and output are priced separately, using an editable 80/20 token mix by default.
             </p>
           </div>
-          <div className="grid min-w-[280px] gap-2 sm:grid-cols-2">
+          <div className="grid min-w-[280px] flex-1 gap-2 sm:grid-cols-2 xl:max-w-3xl xl:grid-cols-4">
             <label className="text-[9px] text-[var(--text-tertiary)]">
               <span className="mb-1 block">Plan preset</span>
               <select
@@ -815,9 +812,7 @@ function SubscriptionValuePanel({
                 }}
                 className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
               >
-                {SUBSCRIPTION_PLANS.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                ))}
+                {SUBSCRIPTION_PLANS.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
               </select>
             </label>
             <label className="text-[9px] text-[var(--text-tertiary)]">
@@ -832,40 +827,72 @@ function SubscriptionValuePanel({
                 className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
               />
             </label>
+            <label className="text-[9px] text-[var(--text-tertiary)]">
+              <span className="mb-1 block">Reference API model</span>
+              <select
+                aria-label="Subscription reference model"
+                value={reference?.id ?? ''}
+                onChange={(event) => setReferenceId(event.target.value)}
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+              >
+                {referenceModels.map((model) => <option key={model.id} value={model.id}>{shortModel(model.id)}</option>)}
+              </select>
+            </label>
+            <label className="text-[9px] text-[var(--text-tertiary)]">
+              <span className="mb-1 block">Input share · output {outputSharePercent}%</span>
+              <input
+                aria-label="Input token share"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={inputSharePercent}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  setInputSharePercent(Number.isFinite(next) ? Math.min(100, Math.max(0, next)) : 0);
+                }}
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+              />
+            </label>
           </div>
         </div>
       </div>
 
-      {benchmark && value ? (
+      {reference && value ? (
         <>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
             <WatchMetric label="Plan fee" value={monthlyCurrency(monthlyPriceUsd)} />
-            <WatchMetric label="PAYG equivalent" value={monthlyCurrency(benchmark.totalCostUsd)} accent />
-            <WatchMetric label="Value multiple" value={`${value.valueMultiple.toFixed(2)}×`} />
-            <WatchMetric label="Break-even workload" value={value.breakEvenUsageMultiplier === null ? '—' : `${value.breakEvenUsageMultiplier.toFixed(2)}×`} />
-            <WatchMetric label="Break-even tokens" value={value.breakEvenTokens === null ? '—' : formatNumber(value.breakEvenTokens)} />
-            <WatchMetric label="Current verdict" value={verdict === 'subscription-better' ? 'Subscription' : verdict === 'break-even' ? 'Even' : 'PAYG'} />
+            <WatchMetric label="API input / M" value={rate(reference.pricing.input)} />
+            <WatchMetric label="API output / M" value={rate(reference.pricing.output)} />
+            <WatchMetric label="Blended / M" value={monthlyCurrency(value.blendedRateUsdPerM)} accent />
+            <WatchMetric label="Break-even total" value={formatNumber(value.breakEvenTokens)} />
+            <WatchMetric label="Token mix" value={`${inputSharePercent}% / ${outputSharePercent}%`} />
           </div>
-          <div className={`card-surface border-l-2 p-4 ${verdict === 'subscription-better' ? 'border-l-moss' : verdict === 'break-even' ? 'border-l-amber-500' : 'border-l-accent'}`}>
-            <p className="text-sm font-semibold text-[var(--text-primary)]">{verdictText}</p>
-            <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
-              PAYG benchmark: {benchmark.model.providerDisplay} · {shortModel(benchmark.model.id)} at {rate(benchmark.blendedRateUsdPerM)} per million blended tokens.
+          <div className="card-surface border-l-2 border-l-violet-500 p-4">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
+              Break even at {formatNumber(value.breakEvenTokens)} monthly tokens.
             </p>
+            <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
+              {formatNumber(value.breakEvenInputTokens)} input + {formatNumber(value.breakEvenOutputTokens)} output at {rate(reference.pricing.input)} input and {rate(reference.pricing.output)} output per million.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-[var(--text-tertiary)]">
+              <span>{formatNumber(value.breakEvenInputTokens)} input</span>
+              <span>·</span>
+              <span>{formatNumber(value.breakEvenOutputTokens)} output</span>
+              <span>·</span>
+              <span>{monthlyCurrency(value.blendedRateUsdPerM)} blended / M</span>
+            </div>
             <p className="mt-3 text-[10px] leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
             <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
-              Usage caps are not expressed as token allowances in the market catalog. This value assumes the plan includes the selected models and fully covers the workload without throttling or overage charges.
+              Usage caps are not expressed as token allowances in the market catalog. Break-even shows API-equivalent value, not a guarantee that the subscription permits this volume.
             </p>
-            {plan.sourceUrl && (
-              <a className="mt-2 inline-block text-[10px] font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">
-                Verify current plan terms
-              </a>
-            )}
+            {plan.sourceUrl && <a className="mt-2 inline-block text-[10px] font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">Verify current plan terms</a>}
           </div>
         </>
-      ) : benchmark ? (
-        <div role="alert" className="card-surface p-4 text-xs text-ember">{result && !result.ok ? result.error : 'Subscription comparison is unavailable.'}</div>
       ) : (
-        <div role="status" className="card-surface p-5 text-xs text-[var(--text-tertiary)]">No qualifying PAYG route is available for this workload and the active filters.</div>
+        <div role="alert" className="card-surface p-4 text-xs text-ember">
+          {result && !result.ok ? result.error : 'No direct Claude API reference model is available in the catalog.'}
+        </div>
       )}
     </div>
   );

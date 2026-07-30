@@ -1,6 +1,6 @@
 {
   "name": "pi-tps-relay",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "description": "Sanitized usage and performance metrics collector for pi",
   "type": "module",
   "scripts": {
