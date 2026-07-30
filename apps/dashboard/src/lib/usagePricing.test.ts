@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PricingCatalog } from '@pi-tps/metrics-core';
 import type { UsageDashboardData, UsageModelRow } from './usageQueries';
-import { priceUsageDashboard, resolveUsageCost } from './usagePricing';
+import { priceUsageDashboard, resolveUsageCost, summarizeSubscriptionUsage } from './usagePricing';
 
 const catalog: PricingCatalog = {
   generatedAt: '2026-07-29T00:00:00Z',
@@ -62,6 +62,23 @@ describe('usage pricing fallback', () => {
     expect(priced.summary.totalCostUsd).toBeCloseTo(1.7375);
     expect(priced.summary.estimatedModelCount).toBe(1);
     expect(priced.models[0].costSource).toBe('catalog');
+    expect(priced.monthModels[0]).toMatchObject({
+      provider: 'makora', modelId: 'moonshotai/Kimi-K2.7-Code', costSource: 'catalog',
+    });
+    expect(priced.monthModels[0].resolvedCostUsd).toBeCloseTo(1.7375);
+
+    const subscriptionUsage = summarizeSubscriptionUsage(priced.monthModels, ['makora'], catalog.models);
+    expect(subscriptionUsage).toMatchObject({
+      matchedModels: 1, calls: 10, totalTokens: 3_100_000,
+      inputTokens: 1_000_000, cacheReadTokens: 2_000_000, outputTokens: 100_000,
+    });
+    expect(subscriptionUsage.apiEquivalentUsd).toBeCloseTo(1.7375);
+
+    const withUnpricedCacheWrite = summarizeSubscriptionUsage([{
+      ...priced.monthModels[0], cacheWriteTokens: 1_000_000, totalTokens: 4_100_000,
+    }], ['makora'], catalog.models);
+    expect(withUnpricedCacheWrite.apiEquivalentUsd).toBeCloseTo(1.7375);
+    expect(withUnpricedCacheWrite.totalTokens).toBe(4_100_000);
   });
 
   it('prices claude-bridge usage through the Anthropic provider alias', () => {
@@ -72,6 +89,11 @@ describe('usage pricing fallback', () => {
       canonicalProvider: 'anthropic',
       pricingModel: { id: 'anthropic/claude-opus-5', provider: 'anthropic' },
     });
+    const priced = priceUsageDashboard(dashboard([bridge]), catalog);
+    expect(summarizeSubscriptionUsage(priced.monthModels, ['claude-bridge'], catalog.models).matchedModels).toBe(1);
+    expect(summarizeSubscriptionUsage([
+      { ...priced.monthModels[0], provider: 'anthropic' },
+    ], ['claude-bridge'], catalog.models).matchedModels).toBe(0);
   });
 
   it('keeps native costs instead of replacing them with catalog estimates', () => {

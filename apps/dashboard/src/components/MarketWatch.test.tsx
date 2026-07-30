@@ -227,6 +227,61 @@ describe('MarketWatch', () => {
     await act(async () => root.unmount());
   });
 
+  it('uses the observed Pi fresh, cache, and output mix for subscription affordability', async () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    duckQueryResult = {
+      loading: false, error: null,
+      data: {
+        summary: {
+          totalCalls: 10, sessions: 1, inputTokens: 500_000, outputTokens: 100_000,
+          cacheReadTokens: 9_500_000, cacheWriteTokens: 50_000_000, totalTokens: 60_100_000,
+          totalCostUsd: 0, cacheHitPct: 95, prompts: 0, swearCount: 0,
+          humanActiveMinutes: 0, agentActiveMinutes: 0, monthCostUsd: 0, monthForecastUsd: 0,
+        },
+        models: [],
+        monthModels: [{
+          provider: 'claude-bridge', modelId: 'claude-haiku-4.5', calls: 10, sessions: 1,
+          inputTokens: 500_000, outputTokens: 100_000, cacheReadTokens: 9_500_000,
+          cacheWriteTokens: 50_000_000, totalTokens: 60_100_000, cacheHitPct: 95,
+          costUsd: 0, pricedCalls: 0,
+        }],
+        points: [], sessions: [],
+      },
+    };
+    const haiku = {
+      ...pricingModel(0), id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5',
+      org: 'anthropic', provider: 'anthropic', providerDisplay: 'Anthropic',
+      pricing: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+    };
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+    await act(async () => {
+      root.render(<MarketWatch dbVersion={1} pricing={{
+        catalog: { generatedAt: new Date().toISOString(), models: [haiku] },
+        performance: null, fetchedAt: null, loading: false, error: null, refresh: vi.fn(),
+      }} />);
+    });
+    const subscription = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.trim() === 'Subscription Value')!;
+    await act(async () => subscription.click());
+
+    expect(container.textContent).toContain('Your Pi history mix');
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Fresh input share"]')?.value).toBe('4.95');
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Cache-read share"]')?.value).toBe('94.06');
+    const outputShare = container.querySelector<HTMLInputElement>('input[aria-label="Output token share"]')!;
+    expect(outputShare.value).toBe('0.99');
+    expect(outputShare.readOnly).toBe(true);
+    expect(container.textContent).toContain('API-equivalent value');
+    expect(container.textContent).toContain('$64.45');
+    expect(container.textContent).toContain('3.22× realized');
+    expect(container.textContent).toContain('Cache-write cost is included when published');
+    expect(container.textContent).toContain('missing cache-write rate contributes $0');
+    expect(container.textContent).toContain('Cache writes are excluded from the percentage mix');
+
+    await act(async () => root.unmount());
+  });
+
   it('searches subscription-capable routes and calculates honest subscription value', async () => {
     const container = document.createElement('div');
     const root = createRoot(container);
@@ -240,13 +295,21 @@ describe('MarketWatch', () => {
       ...pricingModel(1), id: 'acme/metered-model', name: 'Metered Model', provider: 'metered',
       providerDisplay: 'Metered', pricing: { input: 100, output: 200, cacheRead: null, cacheWrite: null },
     };
+    const makoraRoute = {
+      ...pricingModel(2), id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', provider: 'makora',
+      providerDisplay: 'Makora', pricing: { input: 0.09, output: 0.195, cacheRead: 0.0196, cacheWrite: null },
+    };
+    const codexRoute = {
+      ...pricingModel(3), id: 'openai/gpt-5.6-luna', name: 'GPT-5.6 Luna', provider: 'openai',
+      providerDisplay: 'OpenAI', pricing: { input: 0.5, output: 3, cacheRead: 0.05, cacheWrite: 0.625 },
+    };
 
     await act(async () => {
       root.render(
         <MarketWatch
           dbVersion={0}
           pricing={{
-            catalog: { generatedAt: new Date().toISOString(), models: [subscriptionRoute, meteredRoute] },
+            catalog: { generatedAt: new Date().toISOString(), models: [subscriptionRoute, meteredRoute, makoraRoute, codexRoute] },
             performance: null, fetchedAt: null, loading: false, error: null, refresh: vi.fn(),
           }}
         />,
@@ -280,24 +343,61 @@ describe('MarketWatch', () => {
     expect(container.querySelector('select[aria-label="Subscription plan"]')).not.toBeNull();
     expect(container.querySelector('select[aria-label="Subscription reference model"]')).not.toBeNull();
     expect(container.querySelector<HTMLInputElement>('input[aria-label="Monthly subscription price"]')?.value).toBe('20');
-    const inputShare = container.querySelector<HTMLInputElement>('input[aria-label="Input token share"]')!;
-    expect(inputShare.value).toBe('80');
+    const freshShare = container.querySelector<HTMLInputElement>('input[aria-label="Fresh input share"]')!;
+    const cacheShare = container.querySelector<HTMLInputElement>('input[aria-label="Cache-read share"]')!;
+    const outputShare = container.querySelector<HTMLInputElement>('input[aria-label="Output token share"]')!;
+    expect([freshShare.value, cacheShare.value, outputShare.value]).toEqual(['2.5', '97', '0.5']);
+    expect(container.textContent).toContain('TokenWatch default mix');
     expect(container.textContent).toContain('$1.00 input');
+    expect(container.textContent).toContain('$0.10 cache');
     expect(container.textContent).toContain('$5.00 output');
-    expect(container.textContent).toContain('$1.80');
-    expect(container.textContent).toContain('11.1M');
-    expect(container.textContent).toContain('8.9M input');
-    expect(container.textContent).toContain('2.2M output');
+    expect(container.textContent).toContain('$0.147');
+    expect(container.textContent).toContain('136.1M');
+    expect(container.textContent).toContain('3.4M fresh');
+    expect(container.textContent).toContain('132M cached');
+    expect(container.textContent).toContain('680.3K output');
 
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(inputShare, '50');
-      inputShare.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    expect(container.textContent).toContain('$3.00');
-    expect(container.textContent).toContain('6.7M');
+    for (const [input, next] of [[freshShare, '3'], [cacheShare, '96']] as const) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, next);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
+    expect(container.textContent).toContain('$0.176');
+    expect(container.textContent).toContain('113.6M');
     expect(container.textContent).toContain('Usage caps are not expressed as token allowances');
 
     const plan = container.querySelector<HTMLSelectElement>('select[aria-label="Subscription plan"]')!;
+    expect([...plan.options].map((option) => option.textContent)).toEqual(expect.arrayContaining([
+      'Makora Starter', 'Makora Developer', 'ChatGPT Pro (Codex)',
+    ]));
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(plan, 'makora-developer');
+      plan.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Monthly subscription price"]')?.value).toBe('200');
+    expect(container.textContent).toContain('$0.09 input');
+    expect(container.textContent).toContain('$0.195 output');
+    expect(container.textContent).toContain('Discounted overage: $0.081 input, $0.01764 cache, and $0.1755 output');
+    expect(container.textContent).toContain('not applied to the base affordability comparator');
+    expect(container.textContent).toContain('5,000 requests per five-hour period');
+    expect(container.textContent).toContain('10% PAYG overage discount');
+    expect(container.textContent).toContain('Sold out');
+    const makoraConsent = container.querySelector<HTMLInputElement>('input[aria-label="Treat Makora API history as subscription usage"]')!;
+    expect(makoraConsent.checked).toBe(false);
+    expect(container.textContent).toContain('automatic detection is unsafe');
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(plan, 'codex-pro');
+      plan.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Monthly subscription price"]')?.value).toBe('200');
+    expect(container.textContent).toContain('maximum Codex tasks');
+    expect(container.textContent).toContain('API-equivalent estimate');
+    expect(container.textContent).toContain('GitHub Copilot');
+    expect(container.textContent).toContain('Google AI');
+    expect(container.textContent).toContain('not forced into token break-even');
+
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(plan, 'custom');
       plan.dispatchEvent(new Event('change', { bubbles: true }));
@@ -307,7 +407,7 @@ describe('MarketWatch', () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(monthlyPrice, '100');
       monthlyPrice.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(container.textContent).toContain('33.3M');
+    expect(container.textContent).toContain('568.2M');
 
     await act(async () => root.unmount());
   });

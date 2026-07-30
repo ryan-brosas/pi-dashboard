@@ -12,7 +12,9 @@ import {
 import { useDuckQuery } from '../hooks/useDuckQuery';
 import { usePricingCatalog } from '../hooks/usePricingCatalog';
 import { queryUsageDashboard, type UsageRange } from '../lib/usageQueries';
-import { priceUsageDashboard } from '../lib/usagePricing';
+import {
+  priceUsageDashboard, summarizeSubscriptionUsage, type PricedUsageModelRow,
+} from '../lib/usagePricing';
 
 const WATCH_RANGES: { key: UsageRange; label: string }[] = [
   { key: '24h', label: '24h' },
@@ -54,30 +56,64 @@ interface SubscriptionPlanPreset {
   id: string;
   name: string;
   monthlyPriceUsd: number;
+  referenceProvider: string;
+  referenceModelIds: string[];
+  overageRateMultiplier?: number;
   limitNote: string;
+  analysisNote: string;
   sourceUrl: string | null;
 }
 
+const CLAUDE_REFERENCES = [
+  'anthropic/claude-sonnet-5', 'anthropic/claude-opus-5', 'anthropic/claude-haiku-4.5',
+];
+const CODEX_REFERENCES = [
+  'openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol',
+];
+
 const SUBSCRIPTION_PLANS: SubscriptionPlanPreset[] = [
   {
-    id: 'claude-pro',
-    name: 'Claude Pro',
-    monthlyPriceUsd: 20,
+    id: 'claude-pro', name: 'Claude Pro', monthlyPriceUsd: 20,
+    referenceProvider: 'anthropic', referenceModelIds: CLAUDE_REFERENCES,
     limitNote: 'At least 5× Free usage per five-hour session; additional weekly, monthly, model, and feature caps may apply.',
+    analysisNote: 'Affordability is an API-equivalent estimate for the selected Claude model and current token mix, not a measured subscription allowance.',
     sourceUrl: 'https://www.anthropic.com/pricing',
   },
   {
-    id: 'claude-max-5x',
-    name: 'Claude Max 5×',
-    monthlyPriceUsd: 100,
+    id: 'claude-max-5x', name: 'Claude Max 5×', monthlyPriceUsd: 100,
+    referenceProvider: 'anthropic', referenceModelIds: CLAUDE_REFERENCES,
     limitNote: '5× Pro usage per five-hour session with higher output limits; additional caps may apply.',
+    analysisNote: 'Affordability compares the fee with direct API rates; Max sells a larger access envelope rather than a published token allowance.',
     sourceUrl: 'https://www.anthropic.com/pricing',
   },
   {
-    id: 'custom',
-    name: 'Custom plan',
-    monthlyPriceUsd: 20,
+    id: 'makora-starter', name: 'Makora Starter', monthlyPriceUsd: 20,
+    referenceProvider: 'makora', referenceModelIds: ['gemma-4-26b-a4b'],
+    limitNote: 'Sold out. Includes unlimited usage for models under 40B parameters and one concurrent request.',
+    analysisNote: 'Gemma 4 26B is the explicit under-40B reference in the catalog. The affordability estimate applies only while the model remains eligible for the included tier.',
+    sourceUrl: 'https://www.makora.com/pricing',
+  },
+  {
+    id: 'makora-developer', name: 'Makora Developer', monthlyPriceUsd: 200,
+    referenceProvider: 'makora',
+    referenceModelIds: ['deepseek-v4-flash', 'deepseek-v4-pro', 'gemma-4-26b-a4b', 'glm-5.2-fp8', 'glm-5.2-nvfp4', 'kimi-k3'],
+    overageRateMultiplier: 0.9,
+    limitNote: 'Sold out. Includes unlimited models under 40B, 5,000 requests per five-hour period for other models, a 10% PAYG overage discount, and up to six concurrent requests.',
+    analysisNote: 'The base affordability comparator uses full PAYG rates. The request allowance cannot be converted to tokens without an average request shape; discounted overage is reported separately.',
+    sourceUrl: 'https://www.makora.com/pricing',
+  },
+  {
+    id: 'codex-pro', name: 'ChatGPT Pro (Codex)', monthlyPriceUsd: 200,
+    referenceProvider: 'openai', referenceModelIds: CODEX_REFERENCES,
+    limitNote: 'The $200 monthly ChatGPT Pro tier provides maximum Codex tasks. Codex usage still draws from shared five-hour windows and additional weekly limits may apply.',
+    analysisNote: 'This is an API-equivalent estimate against a selected OpenAI API model, not confirmation that the subscription exposes that API model or token volume.',
+    sourceUrl: 'https://developers.openai.com/codex/pricing',
+  },
+  {
+    id: 'custom', name: 'Custom plan', monthlyPriceUsd: 20,
+    referenceProvider: 'anthropic', referenceModelIds: CLAUDE_REFERENCES,
     limitNote: 'Enter the current fee and verify the plan’s model access, quotas, and rate limits.',
+    analysisNote: 'Custom fees use direct API rates as a reference and do not assert that the plan includes the selected model.',
     sourceUrl: null,
   },
 ];
@@ -93,6 +129,12 @@ function rate(value: number | null): string {
 
 function monthlyCurrency(value: number): string {
   return `$${value.toFixed(2)}`;
+}
+
+function subscriptionRate(value: number): string {
+  if (value >= 1) return `$${value.toFixed(2)}`;
+  const [whole, decimals = ''] = value.toFixed(5).split('.');
+  return `$${whole}.${decimals.replace(/0+$/, '').padEnd(2, '0')}`;
 }
 
 function context(value: number | null): string {
@@ -401,7 +443,7 @@ function MarketWatch({
           {subscriptionMode ? 'Loading subscription value for the current month…' : 'Loading PAYG deals for the selected range…'}
         </div>
       ) : subscriptionMode ? (
-        <SubscriptionValuePanel models={catalog.models} />
+        <SubscriptionValuePanel models={catalog.models} monthUsage={pricedUsage?.monthModels ?? []} />
       ) : paygMode && paygAvailable ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -755,37 +797,67 @@ export function MarketTable(props: MarketTableProps) {
   );
 }
 
-function SubscriptionValuePanel({ models }: { models: PricingModel[] }) {
-  const referenceModels = useMemo(() => {
-    const directClaudeRoutes = models.filter((model) =>
-      model.provider === 'anthropic'
-      && model.id.startsWith('anthropic/claude-')
-      && !model.id.includes(':batch')
-      && !model.id.includes('-fast'));
-    return ['haiku', 'sonnet', 'opus'].flatMap((tier) => {
-      const candidates = directClaudeRoutes
-        .filter((model) => model.id.includes(tier))
-        .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
-      return candidates.slice(0, 1);
-    });
-  }, [models]);
-  const defaultReference = referenceModels.find((model) => model.id.includes('sonnet')) ?? referenceModels[0];
+function SubscriptionValuePanel({
+  models, monthUsage,
+}: {
+  models: PricingModel[];
+  monthUsage: PricedUsageModelRow[];
+}) {
   const [referenceId, setReferenceId] = useState('');
   const [planId, setPlanId] = useState(SUBSCRIPTION_PLANS[0]!.id);
   const [monthlyPriceUsd, setMonthlyPriceUsd] = useState(SUBSCRIPTION_PLANS[0]!.monthlyPriceUsd);
-  const [inputSharePercent, setInputSharePercent] = useState(80);
+  const [ambiguousUsageConfirmed, setAmbiguousUsageConfirmed] = useState(false);
   const plan = SUBSCRIPTION_PLANS.find((candidate) => candidate.id === planId) ?? SUBSCRIPTION_PLANS[0]!;
-  const reference = referenceModels.find((model) => model.id === referenceId) ?? defaultReference;
+  const usageProviderKey = plan.referenceProvider === 'anthropic'
+    ? 'claude-bridge'
+    : plan.referenceProvider === 'openai'
+      ? 'openai-codex'
+      : plan.referenceProvider === 'makora' && ambiguousUsageConfirmed ? 'makora' : '';
+  const realizedUsage = useMemo(
+    () => summarizeSubscriptionUsage(
+      monthUsage, usageProviderKey ? usageProviderKey.split('|') : [], models,
+    ),
+    [models, monthUsage, usageProviderKey],
+  );
+  const observedMix = useMemo(() => {
+    const total = realizedUsage.inputTokens + realizedUsage.cacheReadTokens + realizedUsage.outputTokens;
+    if (total <= 0) return null;
+    return {
+      fresh: realizedUsage.inputTokens / total * 100,
+      cached: realizedUsage.cacheReadTokens / total * 100,
+    };
+  }, [realizedUsage]);
+  const [mixOverride, setMixOverride] = useState<{ fresh: number; cached: number } | null>(null);
+  const mix = mixOverride ?? observedMix ?? { fresh: 2.5, cached: 97 };
+  const outputSharePercent = 100 - mix.fresh - mix.cached;
+  const mixSource = mixOverride ? 'Custom mix' : observedMix ? 'Your Pi history mix' : 'TokenWatch default mix';
+  const referenceModels = useMemo(() => {
+    const byId = new Map(models
+      .filter((model) => model.provider === plan.referenceProvider)
+      .map((model) => [model.id, model]));
+    const selected = plan.referenceModelIds
+      .map((id) => byId.get(id))
+      .filter((model): model is PricingModel => model !== undefined);
+    if (selected.length > 0) return selected;
+    return models.filter((model) => model.provider === plan.referenceProvider).slice(0, 12);
+  }, [models, plan]);
+  const reference = referenceModels.find((model) => model.id === referenceId) ?? referenceModels[0];
+  const inputRateUsdPerM = reference?.pricing.input ?? 0;
+  const cacheReadRateUsdPerM = reference
+    ? reference.pricing.cacheRead ?? reference.pricing.input
+    : 0;
+  const outputRateUsdPerM = reference?.pricing.output ?? 0;
   const result = reference
     ? calculateSubscriptionBreakEven({
       monthlyPriceUsd,
-      inputRateUsdPerM: reference.pricing.input,
-      outputRateUsdPerM: reference.pricing.output,
-      inputShare: inputSharePercent / 100,
+      inputRateUsdPerM,
+      cacheReadRateUsdPerM,
+      outputRateUsdPerM,
+      inputShare: mix.fresh / 100,
+      cacheReadShare: mix.cached / 100,
     })
     : null;
   const value = result?.ok ? result.value : null;
-  const outputSharePercent = 100 - inputSharePercent;
 
   return (
     <div className="space-y-4">
@@ -795,10 +867,10 @@ function SubscriptionValuePanel({ models }: { models: PricingModel[] }) {
             <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-500">Subscription value</p>
             <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">How many tokens make the monthly fee worthwhile?</h3>
             <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
-              Compare the plan fee with direct API pricing for a Claude model. Input and output are priced separately, using an editable 80/20 token mix by default.
+              Enter the plan fee as the budget and see how many tokens it buys at direct API rates. Fresh input, cached input, and output are priced separately using your Pi history mix when available.
             </p>
           </div>
-          <div className="grid min-w-[280px] flex-1 gap-2 sm:grid-cols-2 xl:max-w-3xl xl:grid-cols-4">
+          <div className="grid min-w-[280px] flex-1 gap-2 sm:grid-cols-2 xl:max-w-5xl xl:grid-cols-6">
             <label className="text-[9px] text-[var(--text-tertiary)]">
               <span className="mb-1 block">Plan preset</span>
               <select
@@ -809,6 +881,8 @@ function SubscriptionValuePanel({ models }: { models: PricingModel[] }) {
                   if (!selected) return;
                   setPlanId(selected.id);
                   setMonthlyPriceUsd(selected.monthlyPriceUsd);
+                  setReferenceId('');
+                  setAmbiguousUsageConfirmed(false);
                 }}
                 className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
               >
@@ -838,60 +912,131 @@ function SubscriptionValuePanel({ models }: { models: PricingModel[] }) {
                 {referenceModels.map((model) => <option key={model.id} value={model.id}>{shortModel(model.id)}</option>)}
               </select>
             </label>
+            {([
+              ['fresh', 'Fresh input share'],
+              ['cached', 'Cache-read share'],
+            ] as const).map(([key, label]) => (
+              <label key={key} className="text-[9px] text-[var(--text-tertiary)]">
+                <span className="mb-1 block">{label} %</span>
+                <input
+                  aria-label={label}
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={Number(mix[key].toFixed(2))}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    setMixOverride({ ...mix, [key]: Number.isFinite(next) ? Math.min(100, Math.max(0, next)) : 0 });
+                  }}
+                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                />
+              </label>
+            ))}
             <label className="text-[9px] text-[var(--text-tertiary)]">
-              <span className="mb-1 block">Input share · output {outputSharePercent}%</span>
+              <span className="mb-1 block">Output token share %</span>
               <input
-                aria-label="Input token share"
+                aria-label="Output token share"
                 type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={inputSharePercent}
-                onChange={(event) => {
-                  const next = Number(event.target.value);
-                  setInputSharePercent(Number.isFinite(next) ? Math.min(100, Math.max(0, next)) : 0);
-                }}
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                value={Number(outputSharePercent.toFixed(2))}
+                readOnly
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 text-[11px] text-[var(--text-secondary)]"
               />
             </label>
           </div>
+          {plan.referenceProvider === 'makora' && (
+            <label className="mt-3 flex items-start gap-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+              <input
+                aria-label="Treat Makora API history as subscription usage"
+                type="checkbox"
+                checked={ambiguousUsageConfirmed}
+                onChange={(event) => setAmbiguousUsageConfirmed(event.target.checked)}
+                className="mt-0.5"
+              />
+              Treat Makora API history as subscription usage. Makora’s provider ID does not distinguish subscription traffic from direct PAYG, so automatic detection is unsafe.
+            </label>
+          )}
         </div>
       </div>
 
       {reference && value ? (
         <>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-            <WatchMetric label="Plan fee" value={monthlyCurrency(monthlyPriceUsd)} />
-            <WatchMetric label="API input / M" value={rate(reference.pricing.input)} />
-            <WatchMetric label="API output / M" value={rate(reference.pricing.output)} />
-            <WatchMetric label="Blended / M" value={monthlyCurrency(value.blendedRateUsdPerM)} accent />
-            <WatchMetric label="Break-even total" value={formatNumber(value.breakEvenTokens)} />
-            <WatchMetric label="Token mix" value={`${inputSharePercent}% / ${outputSharePercent}%`} />
+          <div className="card-surface p-4">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Realized this month</p>
+            {realizedUsage.matchedModels > 0 ? (
+              <>
+                <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+                  <WatchMetric label="API-equivalent value" value={monthlyCurrency(realizedUsage.apiEquivalentUsd)} accent />
+                  <WatchMetric label="Subscription fee" value={monthlyCurrency(monthlyPriceUsd)} />
+                  <WatchMetric label="Realized multiple" value={`${(realizedUsage.apiEquivalentUsd / monthlyPriceUsd).toFixed(2)}× realized`} />
+                  <WatchMetric label="Net value" value={monthlyCurrency(realizedUsage.apiEquivalentUsd - monthlyPriceUsd)} />
+                  <WatchMetric label="Observed tokens" value={formatNumber(realizedUsage.totalTokens)} />
+                  <WatchMetric label="Observed calls" value={formatNumber(realizedUsage.calls, 0)} />
+                </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                  Detected {realizedUsage.matchedModels} matching model route{realizedUsage.matchedModels === 1 ? '' : 's'} in local Pi history; {realizedUsage.pricedModels} had a current API price and {realizedUsage.unpricedModels} were excluded from value. Cache-write cost is included when published; a missing cache-write rate contributes $0, matching TokenWatch. Cache writes are excluded from the percentage mix and forward capacity estimate.
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-[10px] text-[var(--text-tertiary)]">No matching subscription usage detected in local Pi history this month. The capacity estimate below still works from the plan budget.</p>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+            <WatchMetric label="Plan fee / budget" value={monthlyCurrency(monthlyPriceUsd)} />
+            <WatchMetric label="API input / M" value={subscriptionRate(inputRateUsdPerM)} />
+            <WatchMetric label="API cache / M" value={subscriptionRate(cacheReadRateUsdPerM)} />
+            <WatchMetric label="API output / M" value={subscriptionRate(outputRateUsdPerM)} />
+            <WatchMetric label="Blended / M" value={subscriptionRate(value.blendedRateUsdPerM)} accent />
+            <WatchMetric label="Affordable total" value={formatNumber(value.breakEvenTokens)} />
+            <WatchMetric label="Mix source" value={mixSource} />
           </div>
           <div className="card-surface border-l-2 border-l-violet-500 p-4">
             <p className="text-sm font-semibold text-[var(--text-primary)]">
               Break even at {formatNumber(value.breakEvenTokens)} monthly tokens.
             </p>
             <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
-              {formatNumber(value.breakEvenInputTokens)} input + {formatNumber(value.breakEvenOutputTokens)} output at {rate(reference.pricing.input)} input and {rate(reference.pricing.output)} output per million.
+              {formatNumber(value.breakEvenInputTokens)} fresh + {formatNumber(value.breakEvenCacheReadTokens)} cached + {formatNumber(value.breakEvenOutputTokens)} output at {subscriptionRate(inputRateUsdPerM)} input, {subscriptionRate(cacheReadRateUsdPerM)} cache, and {subscriptionRate(outputRateUsdPerM)} output per million.
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-[var(--text-tertiary)]">
-              <span>{formatNumber(value.breakEvenInputTokens)} input</span>
+              <span>{formatNumber(value.breakEvenInputTokens)} fresh</span>
+              <span>·</span>
+              <span>{formatNumber(value.breakEvenCacheReadTokens)} cached</span>
               <span>·</span>
               <span>{formatNumber(value.breakEvenOutputTokens)} output</span>
               <span>·</span>
-              <span>{monthlyCurrency(value.blendedRateUsdPerM)} blended / M</span>
+              <span>{subscriptionRate(value.blendedRateUsdPerM)} blended / M</span>
             </div>
-            <p className="mt-3 text-[10px] leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
+            <p className="mt-3 text-[10px] leading-relaxed text-[var(--text-secondary)]">{plan.analysisNote}</p>
+            <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
+            {plan.overageRateMultiplier && (
+              <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                Discounted overage: {subscriptionRate(inputRateUsdPerM * plan.overageRateMultiplier)} input, {subscriptionRate(cacheReadRateUsdPerM * plan.overageRateMultiplier)} cache, and {subscriptionRate(outputRateUsdPerM * plan.overageRateMultiplier)} output per million. This discount is not applied to the base affordability comparator.
+              </p>
+            )}
             <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
               Usage caps are not expressed as token allowances in the market catalog. Break-even shows API-equivalent value, not a guarantee that the subscription permits this volume.
             </p>
             {plan.sourceUrl && <a className="mt-2 inline-block text-[10px] font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">Verify current plan terms</a>}
           </div>
+          <div className="card-surface p-4">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Other researched subscriptions</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-primary)]">GitHub Copilot</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">Paid plans keep code completions unlimited and meter chat, agents, CLI, Spaces, and Spark with GitHub AI Credits at $0.01 each. Copilot Max includes $100 in monthly credits.</p>
+                <a className="mt-1 inline-block text-[10px] text-accent hover:underline" href="https://github.com/features/copilot/plans" target="_blank" rel="noreferrer">Official Copilot plans</a>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-primary)]">Google AI</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">Pro and Ultra describe Antigravity, AI Studio, and Jules with relative limits rather than token quotas. Their developer benefits include monthly cloud credits, so they are not forced into token break-even without a comparable allowance.</p>
+                <a className="mt-1 inline-block text-[10px] text-accent hover:underline" href="https://one.google.com/about/google-ai-plans/" target="_blank" rel="noreferrer">Official Google AI plans</a>
+              </div>
+            </div>
+          </div>
         </>
       ) : (
         <div role="alert" className="card-surface p-4 text-xs text-ember">
-          {result && !result.ok ? result.error : 'No direct Claude API reference model is available in the catalog.'}
+          {result && !result.ok ? result.error : `No direct ${plan.referenceProvider} API reference model is available in the catalog.`}
         </div>
       )}
     </div>

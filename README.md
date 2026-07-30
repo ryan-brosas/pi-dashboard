@@ -23,7 +23,7 @@ Restart pi or run `/reload`. The npm package includes the prepared dashboard, so
 To pin the repository release instead, install the Git package:
 
 ```bash
-pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.7
+pi install https://github.com/ryan-brosas/pi-dashboard@v2.0.8
 ```
 
 Live TPS and TTFT data is consumed automatically when compatible `tps` telemetry events are present. Normal Pi history, token usage, and reported cost do not require an additional extension.
@@ -50,9 +50,9 @@ The shortlist keeps each tradeoff explicit instead of hiding it in a composite s
 - **Best same-model switch** — another provider for the dominant observed model family
 - **Best under constraints** — cheapest route meeting the active requirements
 - **Fastest qualifying** — highest reported median TPS among qualifying routes
-- **Subscription Value** — compares a monthly plan fee with a selected model’s separate input and output API prices, then calculates the exact input, output, and total tokens needed to break even
+- **Subscription Value** — detects current-month subscription usage from local Pi history, translates fresh input, cache reads, cache writes, and output into current API-equivalent value, and compares that realized value with the monthly fee
 
-Constrain routes by context size, uptime, TPS, latency, ZDR, provider, billing option, and stable pricing. Search recognizes subscription and metered terms. Missing measurements cannot satisfy an enabled constraint, and the dashboard reports performance-data coverage before making speed-first recommendations. Subscription Value is a computation-only view with current Claude plan presets plus a manual fee override. Choose Haiku, Sonnet, or Opus and adjust the default 80% input / 20% output mix. The calculator applies each token type’s distinct API price and states the blended rate plus exact input, output, and total tokens needed to break even. Because provider caps are not published as token allowances, it never assumes a plan can cover that volume; verify model access, quotas, throttling, and overage terms first. Sort the detailed table by projected cost, TPS, latency, or uptime.
+Constrain routes by context size, uptime, TPS, latency, ZDR, provider, billing option, and stable pricing. Search recognizes subscription and metered terms. Missing measurements cannot satisfy an enabled constraint, and the dashboard reports performance-data coverage before making speed-first recommendations. Subscription Value includes sourced Claude, Makora, and ChatGPT Pro with Codex presets plus a manual fee override. Its local detector automatically aggregates only subscription-specific `claude-bridge` and `openai-codex` current-month Pi routes; Makora usage requires explicit confirmation because its provider ID can also represent PAYG. Every detected row is repriced through a current catalog route, pricing coverage is disclosed, and the dashboard reports realized value multiple and net value against the fee. The forward capacity estimate adapts TokenWatch’s budget inversion and uses the detected Pi fresh-input, cache-read, and output mix when available, otherwise TokenWatch’s 2.5% / 97% / 0.5% default; fresh and cache shares remain editable and output is the derived remainder. Cache writes count in realized value but are excluded from forward capacity because that calculation needs a separate amortization shape. Makora’s 10% overage discount is shown separately from base affordability. Opaque request windows, relative limits, and credits are never converted into fake token quotas; verify model access, throttling, and current terms first. Sort the detailed table by projected cost, TPS, latency, or uptime.
 
 ## Run from source
 

@@ -66,14 +66,17 @@ export interface PaygDealComparison extends ModelPricingComparison {
 export interface SubscriptionBreakEvenInput {
   monthlyPriceUsd: number;
   inputRateUsdPerM: number;
+  cacheReadRateUsdPerM?: number;
   outputRateUsdPerM: number;
   inputShare: number;
+  cacheReadShare?: number;
 }
 
 export interface SubscriptionBreakEven {
   blendedRateUsdPerM: number;
   breakEvenTokens: number;
   breakEvenInputTokens: number;
+  breakEvenCacheReadTokens: number;
   breakEvenOutputTokens: number;
 }
 
@@ -373,14 +376,25 @@ export function calculateSubscriptionBreakEven(input: SubscriptionBreakEvenInput
   if (!Number.isFinite(input.inputShare) || input.inputShare < 0 || input.inputShare > 1) {
     return { ok: false, error: 'Input share must be between zero and one' };
   }
+  const cacheReadShare = input.cacheReadShare ?? 0;
+  if (!Number.isFinite(cacheReadShare) || cacheReadShare < 0
+    || input.inputShare + cacheReadShare > 1) {
+    return { ok: false, error: 'Input and cache shares must leave room for output' };
+  }
   if (!Number.isFinite(input.inputRateUsdPerM) || input.inputRateUsdPerM < 0
     || !Number.isFinite(input.outputRateUsdPerM) || input.outputRateUsdPerM < 0) {
     return { ok: false, error: 'Input and output rates must be zero or greater' };
   }
 
-  const outputShare = 1 - input.inputShare;
+  const outputShare = 1 - input.inputShare - cacheReadShare;
+  const cacheReadRateUsdPerM = input.cacheReadRateUsdPerM ?? input.inputRateUsdPerM;
+  if (!Number.isFinite(cacheReadRateUsdPerM) || cacheReadRateUsdPerM < 0) {
+    return { ok: false, error: 'Cache-read rate must be zero or greater' };
+  }
   const blendedRateUsdPerM = Number((
-    input.inputRateUsdPerM * input.inputShare + input.outputRateUsdPerM * outputShare
+    input.inputRateUsdPerM * input.inputShare
+    + cacheReadRateUsdPerM * cacheReadShare
+    + input.outputRateUsdPerM * outputShare
   ).toFixed(12));
   if (blendedRateUsdPerM <= 0) {
     return { ok: false, error: 'Blended token rate must be greater than zero' };
@@ -392,6 +406,7 @@ export function calculateSubscriptionBreakEven(input: SubscriptionBreakEvenInput
       blendedRateUsdPerM,
       breakEvenTokens,
       breakEvenInputTokens: breakEvenTokens * input.inputShare,
+      breakEvenCacheReadTokens: breakEvenTokens * cacheReadShare,
       breakEvenOutputTokens: breakEvenTokens * outputShare,
     },
   };

@@ -52,6 +52,7 @@ export interface PricedUsageDashboard {
   };
   points: PricedUsagePoint[];
   models: PricedUsageModelRow[];
+  monthModels: PricedUsageModelRow[];
   sessions: PricedUsageSession[];
 }
 
@@ -173,6 +174,54 @@ function resolveSessions(rows: UsageSessionRow[], catalog: PricingCatalog | null
     .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
 }
 
+export interface SubscriptionUsageSummary {
+  matchedModels: number;
+  pricedModels: number;
+  unpricedModels: number;
+  calls: number;
+  inputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  apiEquivalentUsd: number;
+}
+
+export function summarizeSubscriptionUsage(
+  rows: PricedUsageModelRow[],
+  providerAliases: string[],
+  catalogModels: PricingModel[],
+): SubscriptionUsageSummary {
+  const providers = new Set(providerAliases.map((provider) => provider.toLowerCase()));
+  const matched = rows.filter((row) => providers.has(row.provider.toLowerCase()));
+
+  return matched.reduce<SubscriptionUsageSummary>((summary, row) => {
+    const route = resolvePricingModel(catalogModels, row.provider, row.modelId)?.model ?? null;
+    const apiEquivalentUsd = route
+      ? (row.inputTokens * route.pricing.input
+        + row.cacheReadTokens * (route.pricing.cacheRead ?? route.pricing.input)
+        + row.cacheWriteTokens * (route.pricing.cacheWrite ?? 0)
+        + row.outputTokens * route.pricing.output) / 1_000_000
+      : 0;
+    return {
+      matchedModels: summary.matchedModels + 1,
+      pricedModels: summary.pricedModels + (route ? 1 : 0),
+      unpricedModels: summary.unpricedModels + (route ? 0 : 1),
+      calls: summary.calls + row.calls,
+      inputTokens: summary.inputTokens + row.inputTokens,
+      cacheReadTokens: summary.cacheReadTokens + row.cacheReadTokens,
+      cacheWriteTokens: summary.cacheWriteTokens + row.cacheWriteTokens,
+      outputTokens: summary.outputTokens + row.outputTokens,
+      totalTokens: summary.totalTokens + row.totalTokens,
+      apiEquivalentUsd: summary.apiEquivalentUsd + apiEquivalentUsd,
+    };
+  }, {
+    matchedModels: 0, pricedModels: 0, unpricedModels: 0, calls: 0,
+    inputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 0,
+    totalTokens: 0, apiEquivalentUsd: 0,
+  });
+}
+
 export function priceUsageDashboard(
   data: UsageDashboardData,
   catalog: PricingCatalog | null,
@@ -196,6 +245,7 @@ export function priceUsageDashboard(
     },
     points: resolvePoints(data.points, catalog),
     models,
+    monthModels,
     sessions: resolveSessions(data.sessions, catalog),
   };
 }

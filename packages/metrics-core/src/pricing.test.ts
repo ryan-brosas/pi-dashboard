@@ -173,6 +173,29 @@ describe('pricing catalog', () => {
     expect(result.value.breakEvenOutputTokens).toBeCloseTo(2_222_222.22, 2);
   });
 
+  it('prices cached input separately in subscription break-even', () => {
+    const result = calculateSubscriptionBreakEven({
+      monthlyPriceUsd: 20,
+      inputRateUsdPerM: 1,
+      cacheReadRateUsdPerM: 0.1,
+      outputRateUsdPerM: 5,
+      inputShare: 0.05,
+      cacheReadShare: 0.94,
+    });
+    expect(result).toMatchObject({ ok: true, value: { blendedRateUsdPerM: 0.194 } });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.breakEvenTokens).toBeCloseTo(103_092_783.51, 2);
+    expect(result.value.breakEvenCacheReadTokens).toBeCloseTo(96_907_216.49, 2);
+    expect(result.value.breakEvenOutputTokens).toBeCloseTo(1_030_927.84, 2);
+  });
+
+  it('rejects token shares whose total exceeds the full mix', () => {
+    expect(calculateSubscriptionBreakEven({
+      monthlyPriceUsd: 20, inputRateUsdPerM: 1, cacheReadRateUsdPerM: 0.1,
+      outputRateUsdPerM: 5, inputShare: 0.6, cacheReadShare: 0.5,
+    })).toEqual({ ok: false, error: 'Input and cache shares must leave room for output' });
+  });
+
   it('rejects an invalid subscription input share', () => {
     expect(calculateSubscriptionBreakEven({
       monthlyPriceUsd: 20, inputRateUsdPerM: 1, outputRateUsdPerM: 5, inputShare: 1.2,
