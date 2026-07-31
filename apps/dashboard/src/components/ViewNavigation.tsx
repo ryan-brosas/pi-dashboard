@@ -1,6 +1,7 @@
 import { UploadSimple } from '@phosphor-icons/react';
 import Logo from './Logo';
 import { VIEW_TABS, type ViewTab } from './viewTabs';
+import NavTabButton from './NavTabButton';
 
 export const AUTHOR_SITE_URL = 'https://ryanjosebrosas.dev/';
 
@@ -23,26 +24,19 @@ export default function ViewNavigation({ viewTab, onChange, onUpload, canUseSess
         <span className="text-sm font-semibold tracking-tight">pi-tps</span>
       </a>
       <nav aria-label="Primary" className="flex-1 flex flex-col gap-0.5 px-3">
-        {VIEW_TABS.map(({ value, label, requiresSession }) => {
+        {VIEW_TABS.map(({ value, label, icon, requiresSession }) => {
           const active = viewTab === value;
           const disabled = requiresSession && !canUseSessionTabs;
           return (
-            <button
+            <NavTabButton
               key={value}
-              onClick={() => onChange(value)}
+              icon={icon}
+              label={label}
+              active={active}
               disabled={disabled}
-              aria-current={active ? 'page' : undefined}
-              className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors text-left ${
-                active
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'
-              }`}
-            >
-              {active && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-[var(--brand)] animate-fade-in" />
-              )}
-              {label}
-            </button>
+              onClick={() => onChange(value)}
+              layout="rail"
+            />
           );
         })}
       </nav>

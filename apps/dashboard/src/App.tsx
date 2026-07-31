@@ -15,6 +15,7 @@ import { useDuckQuery } from './hooks/useDuckQuery';
 import { usePricingCatalog } from './hooks/usePricingCatalog';
 import Logo from './components/Logo';
 import ViewNavigation, { AUTHOR_SITE_URL } from './components/ViewNavigation';
+import NavTabButton from './components/NavTabButton';
 import SessionScope from './components/SessionScope';
 import { VIEW_TABS, type ViewTab } from './components/viewTabs';
 import { MetricPill, TpsPill } from './components/metrics/MetricPill';
@@ -429,7 +430,7 @@ export default function App() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Upload telemetry files"
-              className="md:hidden flex items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="flex min-h-11 items-center gap-1 rounded-md px-3 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"
               title="Upload telemetry files"
             >
               <UploadSimple size={12} weight="bold" />
@@ -439,21 +440,19 @@ export default function App() {
         </div>
         {/* Mobile nav row */}
         <nav aria-label="Primary" className="md:hidden flex items-center gap-0.5 px-4 sm:px-6 pb-2.5 overflow-x-auto scrollbar-hide border-t border-[var(--border)] pt-2">
-          {VIEW_TABS.map(({ value, label, requiresSession }) => {
+          {VIEW_TABS.map(({ value, label, icon, requiresSession }) => {
             const active = viewTab === value;
             const disabled = requiresSession && !canUseDataTabs;
             return (
-              <button
+              <NavTabButton
                 key={value}
-                onClick={() => handleViewTabChange(value)}
+                icon={icon}
+                label={label}
+                active={active}
                 disabled={disabled}
-                aria-current={active ? 'page' : undefined}
-                className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  active ? 'text-[var(--brand)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-                }`}
-              >
-                {label}
-              </button>
+                onClick={() => handleViewTabChange(value)}
+                layout="bar"
+              />
             );
           })}
         </nav>
