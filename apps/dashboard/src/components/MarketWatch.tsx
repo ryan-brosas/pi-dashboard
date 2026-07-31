@@ -26,8 +26,6 @@ import {
 } from './market/format';
 import { MarketTable } from './market/MarketTable';
 
-export { MarketTable } from './market/MarketTable';
-
 function MarketWatch({
   dbVersion,
   pricing,

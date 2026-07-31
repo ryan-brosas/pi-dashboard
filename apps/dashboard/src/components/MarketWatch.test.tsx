@@ -2,7 +2,8 @@ import { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { PricingModel } from '@pi-tps/metrics-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import MarketWatch, { MarketTable } from './MarketWatch';
+import MarketWatch from './MarketWatch';
+import { MarketTable } from './market/MarketTable';
 
 let duckQueryResult: { data: unknown; loading: boolean; error: unknown } = {
   data: null, loading: true, error: null,
