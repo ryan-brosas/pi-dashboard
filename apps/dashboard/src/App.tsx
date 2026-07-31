@@ -5,7 +5,6 @@ import {
 import {
   DEFAULT_THRESHOLDS, formatCurrency, formatDuration, formatNumber, formatTps, getTpsEvents,
 } from '@pi-tps/metrics-core';
-import type { DataThresholds, ModelInfo } from '@pi-tps/metrics-core';
 import { useTheme } from './hooks/useTheme';
 import { useSessions, type SessionImport } from './hooks/useSessions';
 import { useFileHandler } from './hooks/useFileHandler';
@@ -13,6 +12,7 @@ import { useExtensionApi } from './hooks/useExtensionApi';
 import { useRemoteMetrics } from './hooks/useRemoteMetrics';
 import { useDuckQuery } from './hooks/useDuckQuery';
 import { usePricingCatalog } from './hooks/usePricingCatalog';
+import { useOverviewData } from './hooks/useOverviewData';
 import Logo from './components/Logo';
 import ViewNavigation, { AUTHOR_SITE_URL } from './components/ViewNavigation';
 import NavTabButton from './components/NavTabButton';
@@ -39,18 +39,8 @@ const ProviderStats = lazy(() => import('./components/ProviderStats'));
 const SqlPlayground = lazy(() => import('./components/SqlPlayground'));
 const UsageDashboard = lazy(() => import('./components/UsageDashboard'));
 const MarketWatch = lazy(() => import('./components/MarketWatch'));
-import { queryUsageDashboard } from './lib/usageQueries';
-import { priceUsageDashboard } from './lib/usagePricing';
-import {
-  querySummary, queryModels, queryDataThresholds, queryTimingBuckets, queryMultiSessionSummary,
-  queryCacheEfficiency, queryTtftDistribution, queryThresholdCrossings, queryAnomalies,
-  queryScatter, queryTokenComposition, queryTimeline,
-} from './lib/queries';
-import type {
-  ConversationSummaryRow, DataThresholdsRow, TimingBucketRow, ModelInfoRow, SessionSummaryRow,
-  CacheOverallSlice, CacheOverTimeInterval, TtftBinRow, ThresholdStat, AnomalyRow,
-  ScatterPoint, TokenCompositionRow, TimelineEventRow,
-} from './lib/queries';
+import { queryModels } from './lib/queries';
+import type { ModelInfoRow } from './lib/queries';
 
 const APP_VERSION = "2.1.0";
 
@@ -117,12 +107,6 @@ export default function App() {
     handleDrop, handleDragOver, handleDragLeave, handleFileSelect, loadSample,
   } = fileData;
 
-  const { data: summary, loading: summaryLoading, error: summaryError } = useDuckQuery<ConversationSummaryRow | null>(
-    () => querySummary(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
   const { data: queryModelsResult } = useDuckQuery<ModelInfoRow[]>(
     () => queryModels(activeSessionId),
     [dbVersion, activeSessionId],
@@ -131,11 +115,6 @@ export default function App() {
 
   const modelList = queryModelsResult ?? [];
 
-  const { data: dashboardUsage } = useDuckQuery(
-    () => queryUsageDashboard('all', { sessionId: activeSessionId, modelId: selectedModel }),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
   useEffect(() => {
     document.documentElement.dataset.version = APP_VERSION;
   }, []);
@@ -151,178 +130,26 @@ export default function App() {
     }
   }, [remoteSnapshot, detailedLoaded, detailedLoading, detailedError, loadDetailed, viewTab]);
 
-  const pricingReady = pricingCatalog.catalog !== null || !pricingCatalog.loading;
-  const pricedDashboardUsage = useMemo(
-    () => dashboardUsage && pricingReady ? priceUsageDashboard(dashboardUsage, pricingCatalog.catalog) : null,
-    [dashboardUsage, pricingCatalog.catalog, pricingReady],
-  );
-
-  // TPS/TTFT per model from the tps_paired table (not available from usage queries).
-  const modelTpsStats = useMemo(() => {
-    const map = new Map<string, { avgTps: number | null; maxTps: number | null; avgTtftMs: number | null }>();
-    for (const m of queryModelsResult ?? []) {
-      map.set(`${m.provider}:${m.modelId}`, {
-        avgTps: m.avgTps, maxTps: m.maxTps, avgTtftMs: m.avgTtftMs,
-      });
-    }
-    return map;
-  }, [queryModelsResult]);
-
-  const summaryModels: ModelInfo[] = useMemo(
-    () => pricedDashboardUsage?.models.map((model) => {
-      const tps = modelTpsStats.get(`${model.provider}:${model.modelId}`);
-      return {
-        modelId: model.modelId,
-        provider: model.provider,
-        callCount: model.calls,
-        totalTokens: model.totalTokens,
-        avgTps: tps?.avgTps ?? null,
-        maxTps: tps?.maxTps ?? null,
-        avgTtftMs: tps?.avgTtftMs ?? null,
-        energyCostUsd: null,
-        energyJoules: null,
-        blendedCostUsd: model.costSource === 'unpriced' ? null : model.resolvedCostUsd,
-        costSource: model.costSource === 'unpriced' ? null : 'tps',
-      };
-    }) ?? [],
-    [pricedDashboardUsage, modelTpsStats],
-  );
-
-  const dashboardModelRouteCount = summaryModels.length || modelList.length;
-  const dashboardCostUsd = pricedDashboardUsage?.summary.totalCostUsd ?? summary?.totalCostUsd ?? null;
-  const dashboardCostEstimated = (pricedDashboardUsage?.summary.estimatedModelCount ?? 0) > 0;
-  const estimatedModelIds = useMemo(
-    () => new Set(pricedDashboardUsage?.models
-      .filter((model) => model.costSource === 'catalog')
-      .map((model) => `${model.provider}:${model.modelId}`) ?? []),
-    [pricedDashboardUsage],
-  );
-
-  const { data: dataThresholds } = useDuckQuery<DataThresholdsRow>(
-    () => queryDataThresholds(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const dataThresholdsJs = useMemo(
-    () =>
-      dataThresholds
-        ? ({
-            cacheThreshold: dataThresholds.cacheThreshold,
-            lowContext: dataThresholds.lowContext,
-            slowTtft: dataThresholds.slowTtft,
-            fastTtft: dataThresholds.fastTtft,
-            highNewInputRatio: dataThresholds.highNewInputRatio,
-            anomalyInputThreshold: dataThresholds.anomalyInputThreshold,
-            cacheDropMinTotal: dataThresholds.cacheDropMinTotal,
-            cacheDropMinInput: dataThresholds.cacheDropMinInput,
-            highInputRatio: dataThresholds.highInputRatio,
-            highInputSeverityToken: dataThresholds.highInputSeverityToken,
-            stallCountThreshold: dataThresholds.stallCountThreshold,
-            stallMsSeverity: dataThresholds.stallMsSeverity,
-          } as DataThresholds)
-        : undefined,
-    [dataThresholds],
-  );
-
-  const { data: buckets } = useDuckQuery<TimingBucketRow[]>(
-    () => queryTimingBuckets(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: multiSummary } = useDuckQuery<{
-    sessionCount: number;
-    totalCalls: number;
-    totalTokens: number;
-    totalOutput: number;
-    totalCostUsd: number | null;
-    totalEnergyJoules: number | null;
-    sessions: SessionSummaryRow[];
-    models: ModelInfoRow[];
-    avgTps: number;
-    weightedTps: number;
-    avgTtft: number;
-    timeRangeStart: string;
-    timeRangeEnd: string;
-  } | null>(
-    () => {
-      if (sessions.size <= 1 || activeSessionId || selectedModel) return Promise.resolve(null);
-      const fileNames = new Map<string, string | null>();
-      for (const [sid, s] of sessions.entries()) {
-        fileNames.set(sid, s.fileName ?? null);
-      }
-      return queryMultiSessionSummary(fileNames);
-    },
-    [dbVersion, sessions.size, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const resolvedMultiSummary = useMemo(() => {
-    if (!multiSummary || !pricedDashboardUsage) return null;
-    const costs = new Map(pricedDashboardUsage?.sessions.map((session) => [session.sessionId, session.costUsd]) ?? []);
-    const resolvedSessions = multiSummary.sessions.map((session) => ({
-      ...session,
-      totalCostUsd: costs.get(session.sessionId) ?? session.totalCostUsd,
-    }));
-    return {
-      ...multiSummary,
-      totalCostUsd: pricedDashboardUsage?.summary.totalCostUsd ?? multiSummary.totalCostUsd,
-      sessions: resolvedSessions,
-      models: summaryModels,
-    };
-  }, [multiSummary, pricedDashboardUsage, summaryModels]);
-
-  const { data: cacheEfficiency } = useDuckQuery<{
-    overall: CacheOverallSlice[];
-    overTime: CacheOverTimeInterval[];
-    hitRate: number;
-  }>(
-    () => queryCacheEfficiency(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: tokenComposition } = useDuckQuery<TokenCompositionRow[]>(
-    () => queryTokenComposition(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: ttftDistribution } = useDuckQuery<{
-    bins: TtftBinRow[];
-    fastCount: number;
-    slowCount: number;
-    percentiles: { label: string; value: number }[];
-  }>(
-    () => queryTtftDistribution(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: thresholdStats } = useDuckQuery<ThresholdStat[]>(
-    () => dataThresholds ? queryThresholdCrossings(dataThresholds, activeSessionId, selectedModel) : Promise.resolve([]),
-    [dbVersion, activeSessionId, selectedModel, dataThresholds],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 || !dataThresholds },
-  );
-
-  const { data: anomalies } = useDuckQuery<AnomalyRow[]>(
-    () => dataThresholds ? queryAnomalies(dataThresholds, activeSessionId, selectedModel) : Promise.resolve([]),
-    [dbVersion, activeSessionId, selectedModel, dataThresholds],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 || !dataThresholds },
-  );
-
-  const { data: scatterData } = useDuckQuery<ScatterPoint[]>(
-    () => dataThresholds ? queryScatter(dataThresholds, activeSessionId, selectedModel) : Promise.resolve([]),
-    [dbVersion, activeSessionId, selectedModel, dataThresholds],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 || !dataThresholds },
-  );
-
-  const { data: timelineRows } = useDuckQuery<TimelineEventRow[]>(
-    () => queryTimeline(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
+  const {
+    summary, summaryLoading, summaryError,
+    pricedUsage: pricedDashboardUsage,
+    models: summaryModels,
+    routeCount: dashboardModelRouteCount,
+    costUsd: dashboardCostUsd,
+    costEstimated: dashboardCostEstimated,
+    estimatedModelIds,
+    thresholds: dataThresholdsJs,
+    buckets, resolvedMultiSummary, cacheEfficiency, tokenComposition,
+    ttftDistribution, thresholdStats, anomalies, scatterData, timelineRows,
+  } = useOverviewData({
+    enabled: viewTab === 'dashboard',
+    dbVersion,
+    activeSessionId,
+    selectedModel,
+    sessions,
+    pricingCatalog,
+    modelRows: queryModelsResult ?? null,
+  });
 
   const handlePointClick = useCallback((id: string | null) => setSelectedTpsId(id), []);
   const handleSessionSelect = useCallback((sessionId: string | null) => {
