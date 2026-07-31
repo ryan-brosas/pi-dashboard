@@ -41,9 +41,9 @@ function ModelPerformanceInner({ models, avgTps, weightedTps, totalCalls, estima
         <span className="ml-auto text-2xs metric-mono text-[var(--text-tertiary)]">{rows.length} models · {formatNumber(totalCalls, 0)} calls</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-2xs">
+        <table className="w-full min-w-[560px] text-2xs">
           <thead>
-            <tr className="border-b border-[var(--border-subtle)] text-2xs uppercase tracking-wider text-[var(--text-tertiary)] dark:border-white/[0.06] dark:text-[var(--text-secondary)]">
+            <tr className="border-b border-[var(--border-subtle)] text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">
               <th className="px-3 py-2 text-left font-medium">Model</th>
               <th className="px-3 py-2 text-right font-medium">Provider</th>
               <th className="px-3 py-2 text-right font-medium">Calls</th>

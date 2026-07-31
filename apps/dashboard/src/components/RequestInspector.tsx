@@ -24,7 +24,7 @@ function getCategory(e: TimelineEventRow & { type: 'tps' }, thresholds: DataThre
   if (e.tokensInput > thresholds.anomalyInputThreshold) return { label: 'anomaly', color: 'text-amber bg-amber/5 border-amber/20' };
   if (e.ttftMs > thresholds.slowTtft && e.tokensTotal < thresholds.cacheThreshold) return { label: 'slow', color: 'text-ember bg-ember/5 border-ember/20' };
   if (e.tokensTotal > thresholds.cacheThreshold && e.ttftMs < thresholds.fastTtft && newRatio < thresholds.highNewInputRatio) return { label: 'fast', color: 'text-moss bg-moss/5 border-moss/20' };
-  return { label: 'normal', color: 'text-[var(--text-tertiary)] bg-[var(--surface-inset)]/50 dark:bg-white/[0.04] border-[var(--border-subtle)]' };
+  return { label: 'normal', color: 'text-[var(--text-tertiary)] bg-[var(--surface-inset)] border-[var(--border-subtle)]' };
 }
 
 interface Props {

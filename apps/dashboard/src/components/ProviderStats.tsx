@@ -258,7 +258,7 @@ function RouteCard({ route, active }: { route: ProviderStatsRoute; active: boole
         <PrimaryMetric icon={Pulse} label="Uptime" value={route.uptime30m !== null ? `${route.uptime30m.toFixed(1)}%` : '—'} />
       </div>
 
-      <figure className="mt-2 rounded-md bg-[var(--surface-inset)]/80 p-2 dark:bg-[var(--surface-muted)]" aria-label={`${route.modelName} benchmark profile`}>
+      <figure className="mt-2 rounded-md bg-[var(--surface-inset)] p-2" aria-label={`${route.modelName} benchmark profile`}>
         {hasProfile ? (
           <>
             <div className="mb-1 flex items-center justify-between text-2xs text-[var(--text-tertiary)]">
@@ -270,7 +270,7 @@ function RouteCard({ route, active }: { route: ProviderStatsRoute; active: boole
             </div>
             <div style={{ height: 96 }}>
               {active && <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
-                <LineChart data={profile} margin={{ top: 2, right: 4, left: 0, bottom: 0 }} accessibilityLayer>
+                <LineChart data={profile} margin={{ top: 2, right: 12, left: 12, bottom: 0 }} accessibilityLayer>
                   <CartesianGrid strokeDasharray="2 3" vertical={false} stroke="var(--chart-grid)" />
                   <XAxis dataKey="percentile" tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} interval={0} />
                   <YAxis yAxisId="tps" hide domain={['auto', 'auto']} />
@@ -308,8 +308,8 @@ function RouteCard({ route, active }: { route: ProviderStatsRoute; active: boole
 
 function PrimaryMetric({ icon: Icon, label, value, accent = false }: { icon: typeof Gauge; label: string; value: string; accent?: boolean }) {
   return (
-    <div className="min-w-0 border-l border-[var(--border)] px-2 first:border-l-0 first:pl-0">
-      <div className="flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]"><Icon size={11} /> {label}</div>
+    <div className="min-w-0 border-l border-[var(--border)] px-1.5 first:border-l-0 first:pl-0">
+      <div className="flex min-h-8 items-start gap-1 text-2xs font-semibold uppercase leading-4 tracking-wider text-[var(--text-tertiary)]"><Icon size={11} className="mt-0.5 shrink-0" /> {label}</div>
       <p className={`metric-mono mt-1 text-sm font-semibold tracking-tight ${accent ? 'text-[var(--brand-text)]' : 'text-[var(--text-primary)]'}`}>{value}</p>
     </div>
   );

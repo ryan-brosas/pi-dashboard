@@ -656,7 +656,7 @@ export default function App() {
                     content={<TpsTooltip activeTps={summary.weightedTps} wallTps={summary.weightedWallTps} lossPct={summary.weightedTpsLoss} mode="weighted" />}
                   >
                   <div className="flex items-center gap-x-4 border-b border-[var(--border)] pb-2">
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="mr-auto flex min-w-0 items-center gap-3">
                       <span className="status-dot shrink-0" aria-hidden="true" />
                       <div className="min-w-0">
                         <p className="ui-kicker">Weighted throughput</p>
@@ -666,12 +666,12 @@ export default function App() {
                           </span>
                           <span className="text-xs font-medium text-[var(--text-tertiary)]">tok/s</span>
                         </div>
+                        <p className="hidden truncate text-2xs text-[var(--text-secondary)] md:block">
+                          Across {summary.totalCalls.toLocaleString()} calls
+                          {dashboardModelRouteCount > 0 && <> · {dashboardModelRouteCount} route{dashboardModelRouteCount === 1 ? '' : 's'}</>}
+                        </p>
                       </div>
                     </div>
-                    <p className="hidden min-w-0 text-2xs text-[var(--text-secondary)] md:mr-auto md:block">
-                      Across {summary.totalCalls.toLocaleString()} calls
-                      {dashboardModelRouteCount > 0 && <> · {dashboardModelRouteCount} route{dashboardModelRouteCount === 1 ? '' : 's'}</>}
-                    </p>
                     <div className="ml-auto flex shrink-0 items-center gap-4">
                       <div>
                         <p className="ui-kicker">Wall pace</p>
@@ -690,7 +690,7 @@ export default function App() {
                     role="group"
                     aria-label="Overview metric details"
                     tabIndex={0}
-                    className="scrollbar-hide mt-2 flex gap-3 overflow-x-auto pb-0.5 [&>*]:w-[108px] [&>*]:shrink-0 md:grid md:grid-cols-7 md:overflow-visible md:pb-0 md:[&>*]:w-auto md:[&>*]:min-w-0"
+                    className="scrollbar-hide mt-2 flex gap-3 overflow-x-auto pb-0.5 [&>*]:w-[108px] [&>*]:shrink-0 md:grid md:grid-cols-7 md:gap-0 md:overflow-visible md:pb-0 md:[&>*]:w-auto md:[&>*]:min-w-0 md:[&>*]:border-l md:[&>*]:border-[var(--border)] md:[&>*]:pl-3 md:[&>*:first-child]:border-l-0 md:[&>*:first-child]:pl-0"
                   >
                     <MetricPill inline icon={Pulse} label="Requests" value={formatNumber(summary.totalCalls)} tooltip={
                       <RequestsTooltip
