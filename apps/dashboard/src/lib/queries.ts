@@ -855,7 +855,7 @@ export async function queryTtftDistribution(sessionFilter?: string | null, model
       count: c,
       pct: totalCount > 0 ? (c / totalCount) * 100 : 0,
       barPct: (c / maxCount) * 100,
-      color: colorMap[order] ?? 'bg-zinc-400',
+      color: colorMap[order] ?? 'bg-[var(--chart-axis)]',
     });
   }
 

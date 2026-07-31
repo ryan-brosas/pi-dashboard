@@ -23,7 +23,7 @@ const COLOR_SCHEMES: Record<string, { border: string; iconText: string }> = {
 
 const DEFAULT_SCHEME = {
   border: 'border-[var(--border)]',
-  iconText: 'text-zinc-500 dark:text-zinc-400',
+  iconText: 'text-[var(--text-secondary)]',
 };
 
 const ACCENT_SCHEME = COLOR_SCHEMES.accent;
@@ -51,13 +51,13 @@ function PillBody({ icon: Icon, label, value, unit, subLabel, subValue, accent =
       <div className="flex min-w-0 items-center gap-2">
         <Icon weight="bold" size={14} className={`shrink-0 ${scheme.iconText}`} />
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)] leading-none">{label}</p>
+          <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)] leading-none">{label}</p>
           <div className="flex items-baseline gap-1.5 mt-0.5">
             <p className="metric-value text-sm font-semibold text-[var(--text-primary)] leading-tight whitespace-nowrap">
-              {value}{unit && <span className="text-[10px] text-[var(--text-tertiary)] ml-0.5">{unit}</span>}
+              {value}{unit && <span className="text-2xs text-[var(--text-tertiary)] ml-0.5">{unit}</span>}
             </p>
             {subValue && (
-              <span className="text-[10px] text-[var(--text-tertiary)] leading-tight">
+              <span className="text-2xs text-[var(--text-tertiary)] leading-tight">
                 {subLabel && <span className="text-[var(--text-tertiary)] mr-0.5">{subLabel}</span>}
                 <span className="metric-mono font-medium">{subValue}</span>
               </span>
@@ -69,17 +69,17 @@ function PillBody({ icon: Icon, label, value, unit, subLabel, subValue, accent =
   }
   return (
     <div
-      className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border bg-[var(--surface)] transition-colors ${scheme.border}`}
+      className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-md border bg-[var(--surface)] transition-colors ${scheme.border}`}
     >
       <Icon weight="bold" size={15} className={`shrink-0 ${scheme.iconText}`} />
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)] leading-none">{label}</p>
+        <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)] leading-none">{label}</p>
         <div className="flex items-baseline gap-1.5 mt-0.5">
           <p className="metric-value text-base font-semibold text-[var(--text-primary)] leading-tight whitespace-nowrap">
             {value}{unit && <span className="text-xs text-[var(--text-tertiary)] ml-0.5">{unit}</span>}
           </p>
           {subValue && (
-            <span className="text-[10px] text-[var(--text-tertiary)] leading-tight">
+            <span className="text-2xs text-[var(--text-tertiary)] leading-tight">
               {subLabel && <span className="text-[var(--text-tertiary)] mr-0.5">{subLabel}</span>}
               <span className="metric-mono font-medium">{subValue}</span>
             </span>

@@ -23,51 +23,51 @@ function TimingTooltip({ active, payload }: { active?: boolean; payload?: Array<
   const loss = tps > 0 ? ((tps - wallTps) / tps) * 100 : 0;
   const wallShare = tps > 0 ? (wallTps / tps) * 100 : 0;
   return (
-    <div className="glass-panel rounded-2xl px-4 py-3 text-sm" style={{ minWidth: 220 }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-400 mb-2">
+    <div className="glass-panel rounded-lg px-4 py-3 text-sm" style={{ minWidth: 220 }}>
+      <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">
         Request #{Number(d.index) + 1}
       </p>
       <div className="space-y-1.5">
         <div className="flex justify-between gap-2 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Total tokens</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{Number(d.tokensTotal).toLocaleString()}</span>
+          <span className="text-[var(--text-tertiary)]">Total tokens</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{Number(d.tokensTotal).toLocaleString()}</span>
         </div>
         <div className="flex justify-between gap-2 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">TTFT</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{formatDuration(Number(d.ttftMs ?? d.y))}</span>
+          <span className="text-[var(--text-tertiary)]">TTFT</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{formatDuration(Number(d.ttftMs ?? d.y))}</span>
         </div>
         <div className="flex justify-between gap-2 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Cache hit</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{(Number(d.cacheRatio) * 100).toFixed(0)}%</span>
+          <span className="text-[var(--text-tertiary)]">Cache hit</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{(Number(d.cacheRatio) * 100).toFixed(0)}%</span>
         </div>
         <div className="flex justify-between gap-2 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">New input</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{Number(d.input).toLocaleString()}</span>
+          <span className="text-[var(--text-tertiary)]">New input</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{Number(d.input).toLocaleString()}</span>
         </div>
       </div>
-      <div className="mt-2 pt-2 border-t border-zinc-200/50 dark:border-white/[0.06]">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-400 mb-1.5">Speed</p>
+      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+        <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5">Speed</p>
         <div className="space-y-1">
           <div className="flex justify-between text-xs whitespace-nowrap">
-            <span className="text-zinc-400 dark:text-zinc-400">Active</span>
+            <span className="text-[var(--text-tertiary)]">Active</span>
             <span className="metric-mono font-semibold text-moss">{tps.toFixed(1)} tok/s</span>
           </div>
           <div className="flex justify-between text-xs whitespace-nowrap">
-            <span className="text-zinc-400 dark:text-zinc-400">Wall</span>
+            <span className="text-[var(--text-tertiary)]">Wall</span>
             <span className="metric-mono font-semibold text-accent">{wallTps.toFixed(1)} tok/s</span>
           </div>
           <div className="flex justify-between text-xs whitespace-nowrap">
-            <span className="text-zinc-400 dark:text-zinc-400">Loss</span>
-            <span className={`metric-mono font-semibold ${loss > 50 ? 'text-ember' : loss > 20 ? 'text-amber' : 'text-zinc-500 dark:text-zinc-400'}`}>{loss.toFixed(1)}%</span>
+            <span className="text-[var(--text-tertiary)]">Loss</span>
+            <span className={`metric-mono font-semibold ${loss > 50 ? 'text-ember' : loss > 20 ? 'text-amber' : 'text-[var(--text-secondary)]'}`}>{loss.toFixed(1)}%</span>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden flex bg-zinc-100 dark:bg-white/[0.06]">
+          <div className="h-1.5 rounded-full overflow-hidden flex bg-[var(--surface-inset)]">
             <div className="h-full bg-moss" style={{ width: `${Math.max(0, Math.min(100, wallShare))}%` }} />
             <div className="h-full bg-ember" style={{ width: `${Math.max(0, Math.min(100, 100 - wallShare))}%` }} />
           </div>
         </div>
       </div>
       {Number(d.stallCount) > 0 && (
-        <div className="mt-1.5 pt-1.5 border-t border-zinc-200/50 dark:border-white/[0.06]">
+        <div className="mt-1.5 pt-1.5 border-t border-[var(--border)]">
           <div className="flex justify-between text-xs whitespace-nowrap">
             <span className="text-ember">Stalls</span>
             <span className="metric-mono font-semibold text-ember">{String(d.stallCount)} · {formatDuration(Number(d.stallMs))}</span>
@@ -105,10 +105,10 @@ function TimingScatterInner({ data, onPointClick, thresholds }: Props) {
   })), [data]);
 
   const colorMap = {
-    fast: 'var(--chart-positive)',
+    fast: 'var(--success)',
     normal: 'var(--chart-primary)',
-    slow: 'var(--chart-danger)',
-    anomaly: 'var(--chart-warning)',
+    slow: 'var(--danger)',
+    anomaly: 'var(--warning)',
   };
 
   const MAX_POINTS = 100;
@@ -143,8 +143,8 @@ function TimingScatterInner({ data, onPointClick, thresholds }: Props) {
     >
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-zinc-800 dark:text-zinc-300">TTFT vs Context Size</h2>
-          <p className="text-sm text-zinc-400 dark:text-zinc-400 mt-0.5">Color indicates cache efficiency category derived from data.{chartData.length > MAX_POINTS ? ` Showing ${displayData.length} of ${chartData.length} points.` : ''}</p>
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">TTFT vs Context Size</h2>
+          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Color indicates cache efficiency category derived from data.{chartData.length > MAX_POINTS ? ` Showing ${displayData.length} of ${chartData.length} points.` : ''}</p>
         </div>
         <div className="flex items-center gap-1 rounded-md bg-[var(--surface-muted)] p-0.5">
           {(['log', 'linear'] as const).map(s => (
@@ -152,7 +152,7 @@ function TimingScatterInner({ data, onPointClick, thresholds }: Props) {
               key={s}
               onClick={() => setScale(s)}
               aria-pressed={scale === s}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-sm px-3 py-1.5 text-xs font-medium transition-colors ${
                 scale === s
                   ? 'bg-[var(--surface)] text-[var(--text-primary)]'
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
@@ -212,22 +212,22 @@ function TimingScatterInner({ data, onPointClick, thresholds }: Props) {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-2xs">
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-moss" />
-          <span className="text-zinc-400 dark:text-zinc-400">Fast (cached, &gt;{formatThreshold(cacheThreshold)})</span>
+          <span className="text-[var(--text-tertiary)]">Fast (cached, &gt;{formatThreshold(cacheThreshold)})</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-accent" />
-          <span className="text-zinc-400 dark:text-zinc-400">Normal</span>
+          <span className="text-[var(--text-tertiary)]">Normal</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-ember" />
-          <span className="text-zinc-400 dark:text-zinc-400">Slow zone ({formatThreshold(lowContext)}–{formatThreshold(cacheThreshold)})</span>
+          <span className="text-[var(--text-tertiary)]">Slow zone ({formatThreshold(lowContext)}–{formatThreshold(cacheThreshold)})</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-amber" />
-          <span className="text-zinc-400 dark:text-zinc-400">Anomaly (massive new input)</span>
+          <span className="text-[var(--text-tertiary)]">Anomaly (massive new input)</span>
         </div>
       </div>
     </motion.div>

@@ -37,13 +37,13 @@ function ModelPerformanceInner({ models, avgTps, weightedTps, totalCalls, estima
     >
       <div className="mb-4 flex items-center gap-2">
         <Trophy size={16} className="text-accent" weight="bold" />
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-800 dark:text-zinc-300">Model Performance</h2>
-        <span className="ml-auto text-[10px] metric-mono text-zinc-400 dark:text-zinc-500">{rows.length} models · {formatNumber(totalCalls, 0)} calls</span>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Model Performance</h2>
+        <span className="ml-auto text-2xs metric-mono text-[var(--text-tertiary)]">{rows.length} models · {formatNumber(totalCalls, 0)} calls</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-[11px]">
+        <table className="w-full text-2xs">
           <thead>
-            <tr className="border-b border-zinc-200/40 text-[9px] uppercase tracking-wider text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500">
+            <tr className="border-b border-[var(--border-subtle)] text-2xs uppercase tracking-wider text-[var(--text-tertiary)] dark:border-white/[0.06] dark:text-[var(--text-secondary)]">
               <th className="px-3 py-2 text-left font-medium">Model</th>
               <th className="px-3 py-2 text-right font-medium">Provider</th>
               <th className="px-3 py-2 text-right font-medium">Calls</th>
@@ -59,16 +59,16 @@ function ModelPerformanceInner({ models, avgTps, weightedTps, totalCalls, estima
               const isFastest = row === fastest;
               const isCheapest = row === cheapest && !isFastest;
               return (
-                <tr key={`${row.provider}:${row.modelId}`} className="border-b border-zinc-200/20 dark:border-white/[0.03]">
-                  <td className="px-3 py-2.5 font-medium text-zinc-700 dark:text-zinc-300">
+                <tr key={`${row.provider}:${row.modelId}`} className="border-b border-[var(--border-subtle)]">
+                  <td className="px-3 py-2.5 font-medium text-[var(--text-primary)]">
                     <div className="flex items-center gap-1.5">
-                      {isFastest && <span className="rounded bg-moss/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-moss">Fastest</span>}
-                      {isCheapest && <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">Cheapest</span>}
+                      {isFastest && <span className="rounded-sm bg-moss/10 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-moss">Fastest</span>}
+                      {isCheapest && <span className="rounded-sm bg-accent/10 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-accent">Cheapest</span>}
                       <span className="max-w-[12rem] truncate">{row.modelId.split('/').pop()}</span>
-                      {row.estimated && <span className="text-[8px] font-semibold uppercase text-accent">est.</span>}
+                      {row.estimated && <span className="text-2xs font-semibold uppercase text-accent">est.</span>}
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 text-right text-zinc-500 dark:text-zinc-400">{row.provider}</td>
+                  <td className="px-3 py-2.5 text-right text-[var(--text-secondary)]">{row.provider}</td>
                   <td className="px-3 py-2.5 text-right metric-mono">{formatNumber(row.callCount, 0)}</td>
                   <td className="px-3 py-2.5 text-right metric-mono">{formatNumber(row.totalTokens)}</td>
                   <td className="px-3 py-2.5 text-right metric-mono">{row.avgTps !== null ? formatTps(row.avgTps) : '—'}</td>
@@ -81,8 +81,8 @@ function ModelPerformanceInner({ models, avgTps, weightedTps, totalCalls, estima
           </tbody>
         </table>
       </div>
-      <div className="mt-3 flex items-center gap-4 border-t border-zinc-200/40 pt-3 text-[10px] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500">
-        <span>Avg TPS <span className="metric-mono font-medium text-zinc-600 dark:text-zinc-300">{formatTps(avgTps)}</span></span>
+      <div className="mt-3 flex items-center gap-4 border-t border-[var(--border-subtle)] pt-3 text-2xs text-[var(--text-tertiary)] dark:border-white/[0.06] dark:text-[var(--text-secondary)]">
+        <span>Avg TPS <span className="metric-mono font-medium text-[var(--text-secondary)]">{formatTps(avgTps)}</span></span>
         <span>Wtd TPS <span className="metric-mono font-medium text-accent">{formatTps(weightedTps)}</span></span>
       </div>
     </motion.div>

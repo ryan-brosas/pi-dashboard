@@ -283,10 +283,10 @@ function MarketWatch({
   );
 
   if (catalogLoading && !catalog) {
-    return <div role="status" className="min-h-[60dvh] grid place-items-center text-sm text-zinc-400">Loading the model market…</div>;
+    return <div role="status" className="min-h-[60dvh] grid place-items-center text-sm text-[var(--text-tertiary)]">Loading the model market…</div>;
   }
   if (catalogError && !catalog) {
-    return <div role="alert" className="m-8 rounded-2xl border border-ember/20 bg-ember/5 p-5 text-sm text-ember">Pricing watcher failed: {catalogError}</div>;
+    return <div role="alert" className="m-8 rounded-lg border border-ember/20 bg-ember/5 p-5 text-sm text-ember">Pricing watcher failed: {catalogError}</div>;
   }
   if (!catalog) return null;
 
@@ -329,10 +329,10 @@ function MarketWatch({
   const subscriptionCount = filteredModels.filter((model) => model.subscription).length;
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 px-4 py-5 sm:px-6">
+    <div className="page-shell space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
             <Binoculars size={13} weight="bold" /> Independent model market
           </div>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--text-primary)]">
@@ -354,7 +354,7 @@ function MarketWatch({
               type="button"
               onClick={() => setMode('market')}
               aria-pressed={mode === 'market'}
-              className={`rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'market' ? 'bg-[var(--surface-muted)] text-[var(--brand-text)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
+              className={`rounded-sm px-2.5 py-1.5 text-2xs font-medium transition-colors ${mode === 'market' ? 'bg-[var(--surface-muted)] text-[var(--brand-text)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
             >
               Market
             </button>
@@ -362,7 +362,7 @@ function MarketWatch({
               type="button"
               onClick={() => setMode('payg')}
               aria-pressed={mode === 'payg'}
-              className={`inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'payg' ? 'bg-[var(--surface-muted)] text-[var(--chart-positive)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
+              className={`inline-flex items-center gap-1 rounded-sm px-2.5 py-1.5 text-2xs font-medium transition-colors ${mode === 'payg' ? 'bg-[var(--surface-muted)] text-[var(--success)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
             >
               <TrendDown size={11} weight="bold" /> PAYG Deals
             </button>
@@ -372,17 +372,17 @@ function MarketWatch({
                 setMode('subscription');
               }}
               aria-pressed={mode === 'subscription'}
-              className={`rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'subscription' ? 'bg-violet-500/10 text-violet-500' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
+              className={`rounded-sm px-2.5 py-1.5 text-2xs font-medium transition-colors ${mode === 'subscription' ? 'bg-[var(--surface-muted)] text-[var(--brand-text)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
             >
               Subscription Value
             </button>
           </div>
-          <span className="text-[10px] text-[var(--text-tertiary)]">{freshness(catalog.generatedAt, fetchedAt)}</span>
+          <span className="text-2xs text-[var(--text-tertiary)]">{freshness(catalog.generatedAt, fetchedAt)}</span>
           <button
             type="button"
             onClick={refresh}
             disabled={catalogLoading}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-2xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
           >
             <ArrowClockwise size={12} className={catalogLoading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -390,7 +390,7 @@ function MarketWatch({
       </div>
 
       {catalogError && (
-        <div role="alert" className="rounded-xl border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">
+        <div role="alert" className="rounded-lg border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">
           Watcher refresh failed. {catalogError} Showing the last valid catalog.
         </div>
       )}
@@ -407,11 +407,11 @@ function MarketWatch({
       )}
 
       {paygMode && workloadMode === 'actual' && usageError && (
-        <div role="alert" className="rounded-xl border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
+        <div role="alert" className="rounded-lg border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
       )}
 
       {paygMode && workloadMode === 'actual' && pricedUsage && (pricedUsage.summary.estimatedModelCount > 0 || pricedUsage.summary.unpricedModelCount > 0) && (
-        <div className="rounded-xl border border-accent/15 bg-accent/5 px-4 py-3 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="rounded-lg border border-accent/15 bg-accent/5 px-4 py-3 text-2xs text-[var(--text-secondary)]">
           {pricedUsage.summary.estimatedModelCount > 0 && `${pricedUsage.summary.estimatedModelCount} observed route${pricedUsage.summary.estimatedModelCount === 1 ? '' : 's'} use market catalog pricing.`}
           {pricedUsage.summary.unpricedModelCount > 0 && ` ${pricedUsage.summary.unpricedModelCount} route${pricedUsage.summary.unpricedModelCount === 1 ? '' : 's'} remain unpriced.`}
         </div>
@@ -420,17 +420,17 @@ function MarketWatch({
       {paygMode && !paygAvailable && !paygLoading && (
         <div role="status" className="card-surface flex flex-wrap items-center justify-between gap-3 p-5">
           <div>
-            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
               {workloadMode === 'manual' ? 'Enter a monthly token estimate' : 'No usage history found'}
             </p>
-            <p className="mt-1 text-xs text-zinc-400">
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
               {workloadMode === 'manual'
                 ? 'Add at least one token category above to calculate route and subscription value.'
                 : 'Use a manual estimate, connect the collector, or upload telemetry.'}
             </p>
           </div>
           {workloadMode === 'actual' && (
-            <button onClick={() => setWorkloadMode('manual')} className="rounded-lg bg-accent/10 px-3 py-2 text-xs font-medium text-accent">Manual estimate</button>
+            <button onClick={() => setWorkloadMode('manual')} className="rounded-md bg-accent/10 px-3 py-2 text-xs font-medium text-accent">Manual estimate</button>
           )}
         </div>
       )}
@@ -467,7 +467,7 @@ function MarketWatch({
                   type="button"
                   onClick={() => setRange(item.key)}
                   aria-pressed={range === item.key}
-                  className={`rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${range === item.key ? 'bg-accent/10 text-accent dark:bg-accent/15' : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
+                  className={`rounded-md px-2 py-1 text-2xs font-medium transition-colors ${range === item.key ? 'bg-accent/10 text-accent dark:bg-accent/15' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
                 >
                   {item.label}
                 </button>
@@ -478,21 +478,21 @@ function MarketWatch({
 
           <div className="card-surface flex flex-wrap items-end gap-2 p-3">
             <div className="mr-2 min-w-[150px]">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Deal constraints</p>
-              <p className="mt-1 text-[10px] text-[var(--text-secondary)]">Missing data cannot satisfy an enabled constraint.</p>
-              <p className="mt-1 text-[9px] text-[var(--text-tertiary)]">Performance data: {performanceCovered} of {constrainedComparisons.length} qualifying routes.</p>
+              <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Deal constraints</p>
+              <p className="mt-1 text-2xs text-[var(--text-secondary)]">Missing data cannot satisfy an enabled constraint.</p>
+              <p className="mt-1 text-2xs text-[var(--text-tertiary)]">Performance data: {performanceCovered} of {constrainedComparisons.length} qualifying routes.</p>
             </div>
             <DealConstraintSelect ariaLabel="Minimum context" value={minContextLength} setValue={setMinContextLength} options={CONTEXT_OPTIONS} />
             <DealConstraintSelect ariaLabel="Minimum uptime" value={minUptime30m} setValue={setMinUptime30m} options={UPTIME_OPTIONS} />
             <DealConstraintSelect ariaLabel="Minimum TPS" value={minThroughputP50} setValue={setMinThroughputP50} options={TPS_OPTIONS} />
             <DealConstraintSelect ariaLabel="Maximum latency" value={maxLatencyP50} setValue={setMaxLatencyP50} options={LATENCY_OPTIONS} />
-            <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md border border-[var(--border)] px-2.5 text-[10px] text-[var(--text-secondary)]">
+            <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md border border-[var(--border)] px-2.5 text-2xs text-[var(--text-secondary)]">
               <input
                 aria-label="Stable prices only"
                 type="checkbox"
                 checked={stablePricingOnly}
                 onChange={(event) => setStablePricingOnly(event.target.checked)}
-                className="accent-cyan-500"
+                className="accent-[var(--brand)]"
               />
               Stable prices only
             </label>
@@ -527,8 +527,8 @@ function MarketWatch({
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div className="card-surface min-h-[350px] p-5 xl:col-span-2">
-              <p className="text-[10px] uppercase tracking-wider text-zinc-400">Projected cost</p>
-              <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Lowest-cost routes for the selected token mix</h3>
+              <p className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">Projected cost</p>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Lowest-cost routes for the selected token mix</h3>
               {active && <ResponsiveContainer width="100%" height={280} initialDimension={{ width: 1, height: 280 }}>
                 <BarChart
                   title="Projected cost by provider route"
@@ -538,25 +538,25 @@ function MarketWatch({
                   margin={{ top: 16, right: 18, left: 12, bottom: 4 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--chart-grid)" />
-                  <XAxis type="number" tickFormatter={(value) => `$${Number(value).toFixed(Number(value) < 1 ? 2 : 0)}`} tick={{ fontSize: 10, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="model" width={145} tick={{ fontSize: 9, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
+                  <XAxis type="number" tickFormatter={(value) => `$${Number(value).toFixed(Number(value) < 1 ? 2 : 0)}`} tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="model" width={145} tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 11 }} formatter={(value) => formatCurrency(Number(value))} />
-                  {observedCostUsd !== null && observedCostUsd > 0 && <ReferenceLine x={observedCostUsd} stroke="var(--chart-warning)" strokeDasharray="4 4" label={{ value: 'baseline', fill: 'var(--chart-warning)', fontSize: 9 }} />}
+                  {observedCostUsd !== null && observedCostUsd > 0 && <ReferenceLine x={observedCostUsd} stroke="var(--chart-warning)" strokeDasharray="4 4" label={{ value: 'baseline', fill: 'var(--chart-warning)', fontSize: 11 }} />}
                   <Bar dataKey="cost" name="Projected cost" fill="var(--chart-primary)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>}
             </div>
 
             <div className="card-surface p-5">
-              <p className="text-[10px] uppercase tracking-wider text-zinc-400">{workloadMode === 'manual' ? 'Estimated mix' : 'Observed mix'}</p>
-              <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{workloadMode === 'manual' ? 'Monthly token estimate' : 'Tokens in the selected range'}</h3>
+              <p className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">{workloadMode === 'manual' ? 'Estimated mix' : 'Observed mix'}</p>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">{workloadMode === 'manual' ? 'Monthly token estimate' : 'Tokens in the selected range'}</h3>
               <div className="mt-5 space-y-4">
-                <MixRow label="Fresh input" value={usageMix?.inputTokens ?? 0} total={totalTokens} color="bg-accent" />
-                <MixRow label="Cache reads" value={usageMix?.cacheReadTokens ?? 0} total={totalTokens} color="bg-moss" />
-                <MixRow label="Cache writes" value={usageMix?.cacheWriteTokens ?? 0} total={totalTokens} color="bg-violet-500" />
-                <MixRow label="Output" value={usageMix?.outputTokens ?? 0} total={totalTokens} color="bg-amber-500" />
+                <MixRow label="Fresh input" value={usageMix?.inputTokens ?? 0} total={totalTokens} color="bg-[var(--chart-primary)]" />
+                <MixRow label="Cache reads" value={usageMix?.cacheReadTokens ?? 0} total={totalTokens} color="bg-[var(--chart-positive)]" />
+                <MixRow label="Cache writes" value={usageMix?.cacheWriteTokens ?? 0} total={totalTokens} color="bg-[var(--chart-secondary)]" />
+                <MixRow label="Output" value={usageMix?.outputTokens ?? 0} total={totalTokens} color="bg-[var(--chart-warning)]" />
               </div>
-              <div className="mt-5 border-t border-zinc-200/50 pt-4 text-[11px] leading-relaxed text-zinc-400 dark:border-white/[0.06]">
+              <div className="mt-5 border-t border-[var(--border)] pt-4 text-2xs leading-relaxed text-[var(--text-tertiary)]">
                 Cache-specific rates are used when available. Otherwise the input rate is the conservative fallback.
               </div>
             </div>
@@ -593,7 +593,7 @@ function MarketWatch({
         />
       )}
 
-      <div className="text-[10px] text-zinc-400">
+      <div className="text-2xs text-[var(--text-tertiary)]">
         Market pricing and provider metadata refresh every Monday, Wednesday, and Friday. Verify official provider pricing before switching.
       </div>
     </div>
@@ -666,11 +666,20 @@ export function MarketTable(props: MarketTableProps) {
     scrollRef.current?.scrollTo?.({ top: 0 });
   };
   const resetPage = () => changePage(0);
+  const hasActiveFilters = props.search.trim() !== '' || props.provider !== 'all'
+    || props.billing !== 'all' || props.zdrOnly;
+  const clearFilters = () => {
+    resetPage();
+    props.setSearch('');
+    props.setProvider('all');
+    props.setBilling('all');
+    props.setZdrOnly(false);
+  };
   return (
     <div className="card-surface overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
         <div className="relative min-w-[220px] flex-1 max-w-md">
-          <MagnifyingGlass size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <MagnifyingGlass size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input
             value={props.search}
             onChange={(event) => {
@@ -727,15 +736,15 @@ export function MarketTable(props: MarketTableProps) {
           <input type="checkbox" checked={props.zdrOnly} onChange={(event) => {
             resetPage();
             props.setZdrOnly(event.target.checked);
-          }} className="accent-cyan-500" />
+          }} className="accent-[var(--brand)]" />
           <ShieldCheck size={13} /> ZDR only
         </label>
       </div>
 
       <div ref={scrollRef} className="max-h-[60dvh] overflow-auto">
-        <table className={`w-full text-[11px] ${props.paygMode ? 'min-w-[1280px]' : 'min-w-[850px]'}`}>
+        <table className={`w-full text-2xs ${props.paygMode ? 'min-w-[1280px]' : 'min-w-[850px]'}`}>
           <thead className="sticky top-0 z-10 bg-[var(--surface-raised)]">
-            <tr className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">
+            <tr className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">
               <th className="px-5 py-2.5 text-left">Model</th>
               <th className="px-3 py-2.5 text-left">Provider</th>
               <th className="px-3 py-2.5 text-right">Input $/M</th>
@@ -762,10 +771,17 @@ export function MarketTable(props: MarketTableProps) {
             ))}
           </tbody>
         </table>
-        {sortedModels.length === 0 && <div className="py-12 text-center text-xs text-[var(--text-tertiary)]">No catalog routes match these filters.</div>}
+        {sortedModels.length === 0 && (
+          <div role="status" className="grid place-items-center gap-3 py-12 text-center">
+            <p className="text-xs text-[var(--text-tertiary)]">No catalog routes match these filters.</p>
+            {hasActiveFilters && (
+              <button type="button" onClick={clearFilters} className="min-h-9 rounded-md border border-[var(--border)] px-3 text-2xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]">Clear filters</button>
+            )}
+          </div>
+        )}
       </div>
       {sortedModels.length > 0 && (
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-4 py-2.5 text-[11px] text-[var(--text-tertiary)]">
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-4 py-2.5 text-2xs text-[var(--text-tertiary)]">
           <span aria-live="polite">
             {sortedModels.length <= MARKET_PAGE_SIZE
               ? `Showing all ${sortedModels.length.toLocaleString()} routes`
@@ -864,14 +880,14 @@ function SubscriptionValuePanel({
       <div className="card-surface p-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-500">Subscription value</p>
+            <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--brand-text)]">Subscription value</p>
             <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">How many tokens make the monthly fee worthwhile?</h3>
-            <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+            <p className="mt-1 text-2xs leading-relaxed text-[var(--text-secondary)]">
               Enter the plan fee as the budget and see how many tokens it buys at direct API rates. Fresh input, cached input, and output are priced separately using your Pi history mix when available.
             </p>
           </div>
           <div className="grid min-w-[280px] flex-1 gap-2 sm:grid-cols-2 xl:max-w-5xl xl:grid-cols-6">
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Plan preset</span>
               <select
                 aria-label="Subscription plan"
@@ -884,12 +900,12 @@ function SubscriptionValuePanel({
                   setReferenceId('');
                   setAmbiguousUsageConfirmed(false);
                 }}
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
               >
                 {SUBSCRIPTION_PLANS.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
               </select>
             </label>
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Monthly fee in USD</span>
               <input
                 aria-label="Monthly subscription price"
@@ -898,16 +914,16 @@ function SubscriptionValuePanel({
                 step="1"
                 value={monthlyPriceUsd}
                 onChange={(event) => setMonthlyPriceUsd(Number(event.target.value))}
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
               />
             </label>
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Reference API model</span>
               <select
                 aria-label="Subscription reference model"
                 value={reference?.id ?? ''}
                 onChange={(event) => setReferenceId(event.target.value)}
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
               >
                 {referenceModels.map((model) => <option key={model.id} value={model.id}>{shortModel(model.id)}</option>)}
               </select>
@@ -916,7 +932,7 @@ function SubscriptionValuePanel({
               ['fresh', 'Fresh input share'],
               ['cached', 'Cache-read share'],
             ] as const).map(([key, label]) => (
-              <label key={key} className="text-[9px] text-[var(--text-tertiary)]">
+              <label key={key} className="text-2xs text-[var(--text-tertiary)]">
                 <span className="mb-1 block">{label} %</span>
                 <input
                   aria-label={label}
@@ -929,23 +945,23 @@ function SubscriptionValuePanel({
                     const next = Number(event.target.value);
                     setMixOverride({ ...mix, [key]: Number.isFinite(next) ? Math.min(100, Math.max(0, next)) : 0 });
                   }}
-                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
             ))}
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Output token share %</span>
               <input
                 aria-label="Output token share"
                 type="number"
                 value={Number(outputSharePercent.toFixed(2))}
                 readOnly
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 text-[11px] text-[var(--text-secondary)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 text-2xs text-[var(--text-secondary)]"
               />
             </label>
           </div>
           {plan.referenceProvider === 'makora' && (
-            <label className="mt-3 flex items-start gap-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+            <label className="mt-3 flex items-start gap-2 text-2xs leading-relaxed text-[var(--text-secondary)]">
               <input
                 aria-label="Treat Makora API history as subscription usage"
                 type="checkbox"
@@ -962,7 +978,7 @@ function SubscriptionValuePanel({
       {reference && value ? (
         <>
           <div className="card-surface p-4">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Realized this month</p>
+            <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Realized this month</p>
             {realizedUsage.matchedModels > 0 ? (
               <>
                 <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
@@ -973,12 +989,12 @@ function SubscriptionValuePanel({
                   <WatchMetric label="Observed tokens" value={formatNumber(realizedUsage.totalTokens)} />
                   <WatchMetric label="Observed calls" value={formatNumber(realizedUsage.calls, 0)} />
                 </div>
-                <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                <p className="mt-2 text-2xs leading-relaxed text-[var(--text-tertiary)]">
                   Detected {realizedUsage.matchedModels} matching model route{realizedUsage.matchedModels === 1 ? '' : 's'} in local Pi history; {realizedUsage.pricedModels} had a current API price and {realizedUsage.unpricedModels} were excluded from value. Cache-write cost is included when published; a missing cache-write rate contributes $0, matching TokenWatch. Cache writes are excluded from the percentage mix and forward capacity estimate.
                 </p>
               </>
             ) : (
-              <p className="mt-2 text-[10px] text-[var(--text-tertiary)]">No matching subscription usage detected in local Pi history this month. The capacity estimate below still works from the plan budget.</p>
+              <p className="mt-2 text-2xs text-[var(--text-tertiary)]">No matching subscription usage detected in local Pi history this month. The capacity estimate below still works from the plan budget.</p>
             )}
           </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
@@ -990,14 +1006,14 @@ function SubscriptionValuePanel({
             <WatchMetric label="Affordable total" value={formatNumber(value.breakEvenTokens)} />
             <WatchMetric label="Mix source" value={mixSource} />
           </div>
-          <div className="card-surface border-l-2 border-l-violet-500 p-4">
+          <div className="card-surface border-l-2 border-l-[var(--brand)] p-4">
             <p className="text-sm font-semibold text-[var(--text-primary)]">
               Break even at {formatNumber(value.breakEvenTokens)} monthly tokens.
             </p>
-            <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
+            <p className="mt-1 text-2xs text-[var(--text-secondary)]">
               {formatNumber(value.breakEvenInputTokens)} fresh + {formatNumber(value.breakEvenCacheReadTokens)} cached + {formatNumber(value.breakEvenOutputTokens)} output at {subscriptionRate(inputRateUsdPerM)} input, {subscriptionRate(cacheReadRateUsdPerM)} cache, and {subscriptionRate(outputRateUsdPerM)} output per million.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-[var(--text-tertiary)]">
+            <div className="mt-3 flex flex-wrap gap-2 text-2xs text-[var(--text-tertiary)]">
               <span>{formatNumber(value.breakEvenInputTokens)} fresh</span>
               <span>·</span>
               <span>{formatNumber(value.breakEvenCacheReadTokens)} cached</span>
@@ -1006,30 +1022,30 @@ function SubscriptionValuePanel({
               <span>·</span>
               <span>{subscriptionRate(value.blendedRateUsdPerM)} blended / M</span>
             </div>
-            <p className="mt-3 text-[10px] leading-relaxed text-[var(--text-secondary)]">{plan.analysisNote}</p>
-            <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
+            <p className="mt-3 text-2xs leading-relaxed text-[var(--text-secondary)]">{plan.analysisNote}</p>
+            <p className="mt-2 text-2xs leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
             {plan.overageRateMultiplier && (
-              <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+              <p className="mt-1 text-2xs leading-relaxed text-[var(--text-tertiary)]">
                 Discounted overage: {subscriptionRate(inputRateUsdPerM * plan.overageRateMultiplier)} input, {subscriptionRate(cacheReadRateUsdPerM * plan.overageRateMultiplier)} cache, and {subscriptionRate(outputRateUsdPerM * plan.overageRateMultiplier)} output per million. This discount is not applied to the base affordability comparator.
               </p>
             )}
-            <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
+            <p className="mt-1 text-2xs leading-relaxed text-amber-600">
               Usage caps are not expressed as token allowances in the market catalog. Break-even shows API-equivalent value, not a guarantee that the subscription permits this volume.
             </p>
-            {plan.sourceUrl && <a className="mt-2 inline-block text-[10px] font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">Verify current plan terms</a>}
+            {plan.sourceUrl && <a className="mt-2 inline-block text-2xs font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">Verify current plan terms</a>}
           </div>
           <div className="card-surface p-4">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Other researched subscriptions</p>
+            <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Other researched subscriptions</p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-[var(--text-primary)]">GitHub Copilot</p>
-                <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">Paid plans keep code completions unlimited and meter chat, agents, CLI, Spaces, and Spark with GitHub AI Credits at $0.01 each. Copilot Max includes $100 in monthly credits.</p>
-                <a className="mt-1 inline-block text-[10px] text-accent hover:underline" href="https://github.com/features/copilot/plans" target="_blank" rel="noreferrer">Official Copilot plans</a>
+                <p className="mt-1 text-2xs leading-relaxed text-[var(--text-secondary)]">Paid plans keep code completions unlimited and meter chat, agents, CLI, Spaces, and Spark with GitHub AI Credits at $0.01 each. Copilot Max includes $100 in monthly credits.</p>
+                <a className="mt-1 inline-block text-2xs text-accent hover:underline" href="https://github.com/features/copilot/plans" target="_blank" rel="noreferrer">Official Copilot plans</a>
               </div>
               <div>
                 <p className="text-xs font-semibold text-[var(--text-primary)]">Google AI</p>
-                <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">Pro and Ultra describe Antigravity, AI Studio, and Jules with relative limits rather than token quotas. Their developer benefits include monthly cloud credits, so they are not forced into token break-even without a comparable allowance.</p>
-                <a className="mt-1 inline-block text-[10px] text-accent hover:underline" href="https://one.google.com/about/google-ai-plans/" target="_blank" rel="noreferrer">Official Google AI plans</a>
+                <p className="mt-1 text-2xs leading-relaxed text-[var(--text-secondary)]">Pro and Ultra describe Antigravity, AI Studio, and Jules with relative limits rather than token quotas. Their developer benefits include monthly cloud credits, so they are not forced into token break-even without a comparable allowance.</p>
+                <a className="mt-1 inline-block text-2xs text-accent hover:underline" href="https://one.google.com/about/google-ai-plans/" target="_blank" rel="noreferrer">Official Google AI plans</a>
               </div>
             </div>
           </div>
@@ -1063,15 +1079,15 @@ function WorkloadControls({
     <div className="card-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Workload</p>
-          <p className="mt-1 text-[10px] text-[var(--text-secondary)]">Use local history or estimate a monthly token mix. Manual values stay in this browser tab.</p>
+          <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Workload</p>
+          <p className="mt-1 text-2xs text-[var(--text-secondary)]">Use local history or estimate a monthly token mix. Manual values stay in this browser tab.</p>
         </div>
         <div className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
           <button
             type="button"
             onClick={() => setMode('actual')}
             aria-pressed={mode === 'actual'}
-            className={`rounded px-2.5 py-1.5 text-[10px] font-medium ${mode === 'actual' ? 'bg-[var(--surface-muted)] text-[var(--brand-text)]' : 'text-[var(--text-tertiary)]'}`}
+            className={`rounded-sm px-2.5 py-1.5 text-2xs font-medium ${mode === 'actual' ? 'bg-[var(--surface-muted)] text-[var(--brand-text)]' : 'text-[var(--text-tertiary)]'}`}
           >
             Actual usage{actualLoading ? ' · loading' : actualAvailable ? '' : ' · unavailable'}
           </button>
@@ -1079,7 +1095,7 @@ function WorkloadControls({
             type="button"
             onClick={() => setMode('manual')}
             aria-pressed={mode === 'manual'}
-            className={`rounded px-2.5 py-1.5 text-[10px] font-medium ${mode === 'manual' ? 'bg-[var(--surface-muted)] text-[var(--chart-positive)]' : 'text-[var(--text-tertiary)]'}`}
+            className={`rounded-sm px-2.5 py-1.5 text-2xs font-medium ${mode === 'manual' ? 'bg-[var(--surface-muted)] text-[var(--success)]' : 'text-[var(--text-tertiary)]'}`}
           >
             Manual estimate
           </button>
@@ -1087,10 +1103,10 @@ function WorkloadControls({
       </div>
       {mode === 'manual' && (
         <div className="mt-3">
-          <p className="mb-2 text-[10px] font-medium text-[var(--text-primary)]">Manual monthly estimate</p>
+          <p className="mb-2 text-2xs font-medium text-[var(--text-primary)]">Manual monthly estimate</p>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {fields.map((field) => (
-              <label key={field.key} className="text-[9px] text-[var(--text-tertiary)]">
+              <label key={field.key} className="text-2xs text-[var(--text-tertiary)]">
                 <span className="mb-1 block">{field.label.replace('Monthly ', '')}</span>
                 <input
                   aria-label={field.label}
@@ -1104,7 +1120,7 @@ function WorkloadControls({
                       ...current, [field.key]: Number.isFinite(value) && value > 0 ? value : 0,
                     }));
                   }}
-                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
             ))}
@@ -1128,7 +1144,7 @@ function DealConstraintSelect({
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => setValue(Number(event.target.value))}
-      className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+      className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>{option.label}</option>
@@ -1146,20 +1162,20 @@ function DealCard({
 }) {
   return (
     <div className="card-surface p-4">
-      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">{label}</p>
+      <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">{label}</p>
       {deal ? (
         <>
           <div className="mt-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{deal.model.providerDisplay}</p>
-              <p className="truncate text-[10px] text-[var(--text-tertiary)]">{shortModel(deal.model.id)}</p>
+              <p className="truncate text-2xs text-[var(--text-tertiary)]">{shortModel(deal.model.id)}</p>
             </div>
-            <p className="metric-mono text-base font-semibold text-[var(--chart-positive)]">
+            <p className="metric-mono text-base font-semibold text-[var(--success)]">
               {formatCurrency(deal.totalCostUsd)}
             </p>
           </div>
-          <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">{reason}</p>
-          <div className="mt-3 flex flex-wrap gap-1.5 text-[9px] text-[var(--text-tertiary)]">
+          <p className="mt-2 text-2xs leading-relaxed text-[var(--text-secondary)]">{reason}</p>
+          <div className="mt-3 flex flex-wrap gap-1.5 text-2xs text-[var(--text-tertiary)]">
             <span>{deal.model.uptime30m === null ? 'uptime unknown' : `${deal.model.uptime30m.toFixed(1)}% uptime`}</span>
             <span>·</span>
             <span>{deal.performance?.throughput?.p50 === null || deal.performance?.throughput?.p50 === undefined
@@ -1181,8 +1197,8 @@ function DealCard({
 
 function WatchMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="card-surface px-3 py-2.5">
-      <p className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">{label}</p>
+    <div className="min-w-0 border-l border-[var(--border)] px-3 py-1 first:border-l-0 first:pl-0">
+      <p className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">{label}</p>
       <p className={`metric-mono mt-0.5 text-base font-semibold ${accent ? 'text-[var(--brand-text)]' : 'text-[var(--text-primary)]'}`}>{value}</p>
     </div>
   );
@@ -1192,11 +1208,11 @@ function MixRow({ label, value, total, color }: { label: string; value: number; 
   const percentage = total > 0 ? (value / total) * 100 : 0;
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between text-[11px]">
-        <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
-        <span className="metric-mono text-zinc-700 dark:text-zinc-300">{formatNumber(value)} · {percentage.toFixed(1)}%</span>
+      <div className="mb-1.5 flex items-center justify-between text-2xs">
+        <span className="text-[var(--text-secondary)]">{label}</span>
+        <span className="metric-mono text-[var(--text-primary)]">{formatNumber(value)} · {percentage.toFixed(1)}%</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/[0.05]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-inset)] dark:bg-white/[0.05]">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, percentage)}%` }} />
       </div>
     </div>
@@ -1220,12 +1236,12 @@ function MarketRow({
       <td className="max-w-[300px] px-4 py-2">
         <div className="flex items-center gap-1.5">
           <span className="truncate font-medium text-[var(--text-primary)]" title={model.id}>{shortModel(model.id)}</span>
-          {observed && <span className="inline-flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-accent"><CheckCircle size={9} weight="fill" /> used</span>}
-          {model.zdr && <span className="rounded bg-moss/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-moss">ZDR</span>}
-          {model.subscription && <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-violet-500">Sub</span>}
-          {model.discount > 0 && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-amber-600">−{Math.round(model.discount * 100)}%</span>}
+          {observed && <span className="inline-flex items-center gap-1 rounded-sm bg-accent/10 px-1.5 py-0.5 text-2xs font-semibold uppercase text-accent"><CheckCircle size={9} weight="fill" /> used</span>}
+          {model.zdr && <span className="rounded-sm bg-moss/10 px-1.5 py-0.5 text-2xs font-semibold uppercase text-moss">ZDR</span>}
+          {model.subscription && <span className="rounded-sm bg-[var(--surface-muted)] px-1.5 py-0.5 text-2xs font-semibold uppercase text-[var(--brand-text)]">Sub</span>}
+          {model.discount > 0 && <span className="rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-2xs font-semibold text-amber-600">−{Math.round(model.discount * 100)}%</span>}
         </div>
-        <span className="block truncate text-[9px] text-[var(--text-tertiary)]">{model.org}</span>
+        <span className="block truncate text-2xs text-[var(--text-tertiary)]">{model.org}</span>
       </td>
       <td className="px-3 py-2 text-[var(--text-secondary)]">{model.providerDisplay}</td>
       <td className="metric-mono px-3 py-2.5 text-right">{rate(model.pricing.input)}</td>
@@ -1242,11 +1258,11 @@ function MarketRow({
           ? '—' : `${formatNumber(comparison.performance.latency.p50, 0)}ms`}
       </td>}
       {comparison && <td className="metric-mono px-3 py-2.5 text-right">{rate(comparison.blendedRateUsdPerM)}</td>}
-      {comparison && <td className="metric-mono px-3 py-2.5 text-right font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(comparison.totalCostUsd)}</td>}
+      {comparison && <td className="metric-mono px-3 py-2.5 text-right font-medium text-[var(--text-primary)]">{formatCurrency(comparison.totalCostUsd)}</td>}
       {comparison && showSavings && (
-        <td className={`metric-mono px-5 py-2.5 text-right font-medium ${savingsPositive ? 'text-moss' : 'text-zinc-400'}`}>
+        <td className={`metric-mono px-5 py-2.5 text-right font-medium ${savingsPositive ? 'text-moss' : 'text-[var(--text-tertiary)]'}`}>
           {comparison.savingsUsd === null ? '—' : `${savingsPositive ? '−' : '+'}${formatCurrency(Math.abs(comparison.savingsUsd))}`}
-          {comparison.savingsPct !== null && <span className="ml-1 text-[9px] opacity-70">({Math.abs(comparison.savingsPct).toFixed(1)}%)</span>}
+          {comparison.savingsPct !== null && <span className="ml-1 text-2xs opacity-70">({Math.abs(comparison.savingsPct).toFixed(1)}%)</span>}
         </td>
       )}
     </tr>

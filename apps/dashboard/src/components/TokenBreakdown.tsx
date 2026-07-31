@@ -21,14 +21,14 @@ function TokenTooltip({ active, payload }: { active?: boolean; payload?: Array<{
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as Record<string, unknown>;
   return (
-    <div className="glass-panel rounded-2xl px-4 py-3 text-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-400 mb-2">Request #{String(d.index)}</p>
+    <div className="glass-panel rounded-lg px-4 py-3 text-sm">
+      <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Request #{String(d.index)}</p>
       <div className="space-y-1">
         {payload.map((p, index) => (
           <div key={p.dataKey ?? p.name ?? index} className="flex items-center gap-2 text-xs">
             <div className="w-2 h-2 rounded-sm" style={{ background: p.color }} />
-            <span className="text-zinc-400 dark:text-zinc-400 w-20">{p.name}</span>
-            <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{p.value?.toLocaleString()}</span>
+            <span className="text-[var(--text-tertiary)] w-20">{p.name}</span>
+            <span className="metric-mono font-semibold text-[var(--text-primary)]">{p.value?.toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -46,8 +46,8 @@ function TokenBreakdownInner({ data }: Props) {
     >
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-zinc-800 dark:text-zinc-300">Token Composition — Last 30 Requests</h2>
-          <p className="text-sm text-zinc-400 dark:text-zinc-400 mt-0.5">How cache, new input, and output compose each request</p>
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Token Composition — Last 30 Requests</h2>
+          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">How cache, new input, and output compose each request</p>
         </div>
       </div>
 
@@ -63,7 +63,7 @@ function TokenBreakdownInner({ data }: Props) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" className="dark:opacity-40" vertical={false} />
             <XAxis
               dataKey="index"
-              tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }}
+              tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
               axisLine={false}
               tickLine={false}
               dy={8}
@@ -77,25 +77,25 @@ function TokenBreakdownInner({ data }: Props) {
               tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
             />
             <FadingTooltip content={<TokenTooltip />} />
-            <Bar dataKey="cacheRead" name="Cache Read" stackId="a" fill="var(--chart-primary)" fillOpacity={0.8} radius={[0, 0, 0, 0]} />
-            <Bar dataKey="input" name="New Input" stackId="a" fill="var(--chart-secondary)" fillOpacity={0.8} radius={[0, 0, 0, 0]} />
-            <Bar dataKey="output" name="Output" stackId="a" fill="var(--chart-positive)" fillOpacity={0.7} radius={[2, 2, 0, 0]} />
+            <Bar dataKey="cacheRead" name="Cache Read" stackId="a" fill="var(--chart-positive)" fillOpacity={0.8} radius={[0, 0, 0, 0]} />
+            <Bar dataKey="input" name="New Input" stackId="a" fill="var(--chart-primary)" fillOpacity={0.8} radius={[0, 0, 0, 0]} />
+            <Bar dataKey="output" name="Output" stackId="a" fill="var(--chart-warning)" fillOpacity={0.7} radius={[2, 2, 0, 0]} />
           </RBarChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-2xs">
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-sm bg-accent" />
-          <span className="text-zinc-400 dark:text-zinc-400">Cache Read</span>
+          <span className="text-[var(--text-tertiary)]">Cache Read</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-zinc-700 dark:bg-zinc-400" />
-          <span className="text-zinc-400 dark:text-zinc-400">New Input</span>
+          <div className="w-2.5 h-2.5 rounded-sm bg-[var(--chart-axis)]" />
+          <span className="text-[var(--text-tertiary)]">New Input</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-sm bg-moss" />
-          <span className="text-zinc-400 dark:text-zinc-400">Output</span>
+          <span className="text-[var(--text-tertiary)]">Output</span>
         </div>
       </div>
     </motion.div>

@@ -17,12 +17,12 @@ function AnomalyDetectorInner({ anomalies }: Props) {
         className="card-surface p-6"
       >
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-moss/10 rounded-lg">
+          <div className="p-1.5 bg-moss/10 rounded-md">
             <Lightning size={16} className="text-moss" weight="bold" />
           </div>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-800 dark:text-zinc-300">Anomaly Detector</h2>
+          <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">Anomaly Detector</h2>
         </div>
-        <p className="text-sm text-zinc-400 dark:text-zinc-400">No anomalies detected in this session.</p>
+        <p className="text-sm text-[var(--text-tertiary)]">No anomalies detected in this session.</p>
       </motion.div>
     );
   }
@@ -34,7 +34,7 @@ function AnomalyDetectorInner({ anomalies }: Props) {
     switch (s) {
       case 'high': return 'bg-ember/8 border-ember/20 text-ember';
       case 'medium': return 'bg-amber/8 border-amber/20 text-amber';
-      default: return 'bg-zinc-100 border-zinc-200 dark:bg-white/[0.06] dark:border-white/[0.08] text-zinc-500 dark:text-zinc-400';
+      default: return 'bg-[var(--surface-inset)] border-[var(--border)] text-[var(--text-secondary)]';
     }
   };
 
@@ -47,16 +47,16 @@ function AnomalyDetectorInner({ anomalies }: Props) {
     >
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-amber/10 rounded-lg">
+          <div className="p-1.5 bg-amber/10 rounded-md">
             <Warning size={16} className="text-amber" weight="bold" />
           </div>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-800 dark:text-zinc-300">Anomaly Detector</h2>
+          <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">Anomaly Detector</h2>
         </div>
-        <span className="text-[11px] metric-mono font-semibold text-zinc-400 dark:text-zinc-400">{totalCount} found</span>
+        <span className="text-2xs metric-mono font-semibold text-[var(--text-tertiary)]">{totalCount} found</span>
       </div>
 
       {totalCount > MAX_ANOMALY_ROWS && (
-        <p className="-mt-3 mb-3 text-[10px] text-zinc-400 dark:text-zinc-400">
+        <p className="-mt-3 mb-3 text-2xs text-[var(--text-tertiary)]">
           Showing highest-priority {MAX_ANOMALY_ROWS}
         </p>
       )}
@@ -65,7 +65,7 @@ function AnomalyDetectorInner({ anomalies }: Props) {
         {visibleAnomalies.map((a) => (
           <div
             key={`${a.eventId}-${a.type}`}
-            className={`p-3 rounded-xl border ${colorForSeverity(a.severity)}`}
+            className={`p-3 rounded-lg border ${colorForSeverity(a.severity)}`}
           >
             <div className="flex items-start gap-2.5">
               <div className="mt-0.5">
@@ -75,8 +75,8 @@ function AnomalyDetectorInner({ anomalies }: Props) {
                 {a.type === 'stall-spike' && <Warning size={14} weight="bold" />}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{a.description}</p>
-                <p className="text-[10px] metric-mono text-zinc-400 dark:text-zinc-400 mt-1">
+                <p className="text-xs font-medium text-[var(--text-primary)]">{a.description}</p>
+                <p className="text-2xs metric-mono text-[var(--text-tertiary)] mt-1">
                   #{a.index + 1} · total={a.tokensTotal.toLocaleString()}
                 </p>
               </div>

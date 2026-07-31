@@ -179,7 +179,7 @@ export function SmartTooltip({
         >
           {/* Arrow — opacity-only so CSS rotate(45deg) stays intact */}
           <div
-            className="absolute h-2 w-2 bg-white dark:bg-zinc-800 border-zinc-200/60 dark:border-white/[0.08] animate-fade-in"
+            className="absolute h-2 w-2 bg-[var(--surface-raised)] border-[var(--border)] dark:border-white/[0.08] animate-fade-in"
             style={{
               left: arrowOffset,
               transform: 'translateX(-50%) rotate(45deg)',
