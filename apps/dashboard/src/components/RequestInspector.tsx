@@ -252,17 +252,17 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                       <>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="bg-moss/5 dark:bg-moss/10 rounded-md px-2 sm:px-3 py-2.5 text-center">
-                            <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Active</p>
+                            <p className="ui-kicker">Active</p>
                             <p className="metric-mono text-sm font-bold text-moss mt-0.5">{formatTps(activeTps)}</p>
                             <p className="text-2xs text-[var(--text-tertiary)]">tok/s</p>
                           </div>
                           <div className="bg-accent/5 dark:bg-accent/10 rounded-md px-2 sm:px-3 py-2.5 text-center">
-                            <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Wall</p>
+                            <p className="ui-kicker">Wall</p>
                             <p className="metric-mono text-sm font-bold text-accent mt-0.5">{formatTps(wallTps)}</p>
                             <p className="text-2xs text-[var(--text-tertiary)]">tok/s</p>
                           </div>
                           <div className="bg-ember/5 dark:bg-ember/10 rounded-md px-2 sm:px-3 py-2.5 text-center">
-                            <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Loss</p>
+                            <p className="ui-kicker">Loss</p>
                             <p className={`metric-mono text-sm font-bold mt-0.5 ${lossTps > 50 ? 'text-ember' : lossTps > 20 ? 'text-amber' : 'text-[var(--text-secondary)]'}`}>{lossTps.toFixed(1)}%</p>
                             <p className="text-2xs text-[var(--text-tertiary)]">of active</p>
                           </div>

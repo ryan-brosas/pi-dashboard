@@ -63,7 +63,7 @@ function TimingDistributionInner({ bins, fastCount, slowCount, percentiles }: Pr
               : 'text-ember';
             return (
               <div key={label} className="text-center px-3 py-2 first:pl-0 last:pr-0">
-                <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">{label}</p>
+                <p className="ui-kicker">{label}</p>
                 <p className={`metric-mono text-sm font-semibold ${color} mt-0.5`}>
                   {formatDuration(value)}
                 </p>

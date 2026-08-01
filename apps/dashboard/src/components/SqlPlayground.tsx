@@ -242,7 +242,7 @@ const MarkdownSpan = memo(function MarkdownSpan({ text }: { text: string }) {
           const lang = className.replace('language-', '');
           return (
             <pre className="bg-[var(--surface-inset)] rounded-sm px-1.5 py-0.5 my-0.5 overflow-x-auto">
-              {lang && <div className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">{lang}</div>}
+              {lang && <div className="ui-kicker mb-0.5">{lang}</div>}
               <code className="font-mono text-2xs">{children}</code>
             </pre>
           );

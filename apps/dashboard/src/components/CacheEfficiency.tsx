@@ -59,7 +59,7 @@ function CacheEfficiencyInner({ overall, overTime, hitRate }: Props) {
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
             <span className="metric-mono text-2xl font-bold text-[var(--text-primary)]">{hitRate.toFixed(0)}%</span>
-            <span className="text-2xs text-[var(--text-tertiary)] font-medium uppercase tracking-wider">cache hit</span>
+            <span className="ui-kicker">cache hit</span>
           </div>
         </div>
 

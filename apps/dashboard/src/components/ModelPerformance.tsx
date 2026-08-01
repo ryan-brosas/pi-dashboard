@@ -40,7 +40,7 @@ function ModelPerformanceInner({ models, totalCalls, estimatedModelIds }: Props)
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-2xs">
           <thead>
-            <tr className="border-b border-[var(--border-subtle)] text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">
+            <tr className="border-b border-[var(--border-subtle)] ui-kicker">
               <th className="px-3 py-2 text-left font-medium">Model</th>
               <th className="px-3 py-2 text-right font-medium">Provider</th>
               <th className="px-3 py-2 text-right font-medium">Calls</th>

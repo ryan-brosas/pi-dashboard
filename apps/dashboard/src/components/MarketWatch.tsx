@@ -614,7 +614,7 @@ function SubscriptionValuePanel({
       {reference && value ? (
         <>
           <div className="card-surface p-4">
-            <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Realized this month</p>
+            <p className="ui-kicker">Realized this month</p>
             {realizedUsage.matchedModels > 0 ? (
               <>
                 <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
@@ -671,7 +671,7 @@ function SubscriptionValuePanel({
             {plan.sourceUrl && <a className="mt-2 inline-block text-2xs font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">Verify current plan terms</a>}
           </div>
           <div className="card-surface p-4">
-            <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Other researched subscriptions</p>
+            <p className="ui-kicker">Other researched subscriptions</p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-[var(--text-primary)]">GitHub Copilot</p>
@@ -795,7 +795,7 @@ function DealCard({
 }) {
   return (
     <div className="card-surface p-4">
-      <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">{label}</p>
+      <p className="ui-kicker">{label}</p>
       {deal ? (
         <>
           <div className="mt-2 flex items-start justify-between gap-3">

@@ -89,7 +89,7 @@ function CustomTooltip({ active, payload, metric, sessionRate }: { active?: bool
 
   return (
     <div className="glass-panel px-4 py-3 text-sm" style={{ minWidth: 240 }}>
-      <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">{String(data.label)}</p>
+      <p className="ui-kicker mb-1">{String(data.label)}</p>
       <div className="flex items-baseline gap-2">
         <span className="metric-mono text-lg font-bold text-[var(--text-primary)]" style={{ color: isCostMode ? config.color : undefined }}>
           {isCostMode ? formatUsdPerM(rate) : String(data[metric])}
@@ -249,7 +249,7 @@ function CostDecompositionPanel({
       style={{ minWidth: 224, maxWidth: 248 }}
     >
       <div className="px-3 py-2.5">
-        <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+        <p className="mb-2 ui-kicker">
           {bucket.label} · Cost Breakdown
         </p>
 

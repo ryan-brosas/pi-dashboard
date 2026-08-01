@@ -25,7 +25,7 @@ function TimingTooltip({ active, payload }: { active?: boolean; payload?: Array<
   const wallShare = tps > 0 ? (wallTps / tps) * 100 : 0;
   return (
     <div className="glass-panel px-4 py-3 text-sm" style={{ minWidth: 220 }}>
-      <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">
+      <p className="ui-kicker mb-2">
         Request #{Number(d.index) + 1}
       </p>
       <div className="space-y-1.5">
@@ -47,7 +47,7 @@ function TimingTooltip({ active, payload }: { active?: boolean; payload?: Array<
         </div>
       </div>
       <div className="mt-2 pt-2 border-t border-[var(--border)]">
-        <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5">Speed</p>
+        <p className="ui-kicker mb-1.5">Speed</p>
         <div className="space-y-1">
           <div className="flex justify-between text-xs whitespace-nowrap">
             <span className="text-[var(--text-tertiary)]">Active</span>

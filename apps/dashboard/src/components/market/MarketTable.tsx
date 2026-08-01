@@ -150,7 +150,7 @@ export function MarketTable(props: MarketTableProps) {
       <div ref={scrollRef} className="max-h-[60dvh] overflow-auto">
         <table className={`w-full text-2xs ${props.paygMode ? 'min-w-[1280px]' : 'min-w-[850px]'}`}>
           <thead className="sticky top-0 z-10 bg-[var(--surface-raised)]">
-            <tr className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">
+            <tr className="ui-kicker">
               <th className="px-5 py-2.5 text-left">Model</th>
               <th className="px-3 py-2.5 text-left">Provider</th>
               <th className="px-3 py-2.5 text-right">Input $/M</th>

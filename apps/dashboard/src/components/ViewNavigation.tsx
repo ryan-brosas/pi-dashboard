@@ -26,7 +26,7 @@ export default function ViewNavigation({ viewTab, onChange, onUpload, canUseSess
       <nav aria-label="Primary" className="flex-1 flex flex-col gap-4 px-3">
         {(['data', 'market'] as NavGroup[]).map((group) => (
           <div key={group} className="flex flex-col gap-0.5">
-            <p className="ui-label px-3 pb-1">{NAV_GROUP_LABELS[group]}</p>
+            <p className="ui-kicker px-3 pb-1">{NAV_GROUP_LABELS[group]}</p>
             {VIEW_TABS.filter((tab) => tab.group === group).map(({ value, label, icon, requiresSession }) => {
               const disabled = requiresSession && !canUseSessionTabs;
               return (

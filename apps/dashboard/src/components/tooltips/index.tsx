@@ -8,7 +8,7 @@ export function TpsTooltip({ activeTps, wallTps, lossPct, mode }: { activeTps: n
   return (
     <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{mode === 'avg' ? 'Average' : 'Weighted'} Speed</p>
+        <p className="ui-kicker">{mode === 'avg' ? 'Average' : 'Weighted'} Speed</p>
         <p className="text-2xs text-[var(--text-tertiary)]">tok/s</p>
       </div>
       <div className="flex gap-2 mb-2 min-w-0">
@@ -87,7 +87,7 @@ export function RequestsTooltip({
   return (
     <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Requests</p>
+        <p className="ui-kicker">Requests</p>
         <p className="text-2xs text-[var(--text-tertiary)]">calls</p>
       </div>
       <div className="flex items-baseline gap-2 mb-2.5">
@@ -97,7 +97,7 @@ export function RequestsTooltip({
 
       <div className="flex gap-2 mb-3">
         <div className="flex-1 min-w-0 rounded-md bg-[var(--surface-inset)] p-1.5 text-center">
-          <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Tok/call</p>
+          <p className="ui-kicker">Tok/call</p>
           <p className="metric-mono text-xs font-bold text-[var(--text-primary)] mt-0.5">{formatNumber(Math.round(avgTokensPerCall), 0)}</p>
         </div>
         <div className="flex-1 min-w-0 rounded-md bg-moss/5 dark:bg-moss/10 p-1.5 text-center">
@@ -143,7 +143,7 @@ export function RequestsTooltip({
       {models.length > 0 && (
         <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
           <div className="flex items-center justify-between mb-1">
-            <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Per Model</p>
+            <p className="ui-kicker">Per Model</p>
             <p className="text-2xs text-[var(--text-tertiary)]">calls</p>
           </div>
           {models.map(m => {
@@ -188,7 +188,7 @@ export function TotalTimeTooltip({ wallClockMs, totalTimeMs, generationMs }: { w
   return (
     <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Time Breakdown</p>
+        <p className="ui-kicker">Time Breakdown</p>
       </div>
 
       <div className="flex items-baseline gap-2 mb-2.5">
@@ -269,7 +269,7 @@ export function TtftTooltip({ avgTtft, p50, p75, p90, p99, min, max }: { avgTtft
   return (
     <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Time to First Token</p>
+        <p className="ui-kicker">Time to First Token</p>
         <p className="text-2xs text-[var(--text-tertiary)]">latency</p>
       </div>
       <div className="flex items-baseline gap-2 mb-3">
@@ -318,7 +318,7 @@ export function StallsTooltip({ count, ms, totalTimeMs }: { count: number; ms: n
   return (
     <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Stall Analysis</p>
+        <p className="ui-kicker">Stall Analysis</p>
         <Warning weight="bold" size={12} className="text-ember" />
       </div>
       <div className="flex gap-2 mb-3">
@@ -331,7 +331,7 @@ export function StallsTooltip({ count, ms, totalTimeMs }: { count: number; ms: n
           <p className="metric-mono text-sm font-bold text-[var(--text-primary)] mt-0.5">{formatDuration(ms)}</p>
         </div>
         <div className="flex-1 rounded-md bg-[var(--surface-inset)] p-1.5 text-center">
-          <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Avg</p>
+          <p className="ui-kicker">Avg</p>
           <p className="metric-mono text-sm font-bold text-[var(--text-primary)] mt-0.5">{formatDuration(Math.round(avgStall))}</p>
         </div>
       </div>
@@ -367,7 +367,7 @@ export function CostTooltip({ totalCost, energyCost, costSource, models, totalTo
     return (
       <div className="glass-panel px-4 py-3 text-xs">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Cost</p>
+          <p className="ui-kicker">Cost</p>
         <Info weight="bold" size={12} className="text-[var(--text-tertiary)]" />
         </div>
         <p className="text-xs text-[var(--text-secondary)] leading-relaxed">No cost data available for this session.</p>
@@ -384,7 +384,7 @@ export function CostTooltip({ totalCost, energyCost, costSource, models, totalTo
   return (
     <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Total Cost</p>
+        <p className="ui-kicker">Total Cost</p>
         <p className="text-2xs text-[var(--text-tertiary)]">USD</p>
       </div>
       <div className="flex items-baseline gap-2">
@@ -394,7 +394,7 @@ export function CostTooltip({ totalCost, energyCost, costSource, models, totalTo
 
       <div className="flex gap-2 mb-3 mt-2.5">
         <div className="flex-1 min-w-0 rounded-md bg-[var(--surface-inset)] p-1.5 text-center">
-          <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Per 1M tok</p>
+          <p className="ui-kicker">Per 1M tok</p>
           <p className="metric-mono text-xs font-bold text-[var(--text-primary)] mt-0.5">${costPer1M.toFixed(3)}</p>
         </div>
         {energyCost !== null && (
@@ -436,7 +436,7 @@ export function CostTooltip({ totalCost, energyCost, costSource, models, totalTo
       {models.some(m => m.blendedCostUsd !== null) && (
         <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
           <div className="flex items-center justify-between mb-1">
-            <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Per Model</p>
+            <p className="ui-kicker">Per Model</p>
             <p className="text-2xs text-[var(--text-tertiary)]">cost</p>
           </div>
           {models
@@ -482,7 +482,7 @@ export function TokensTooltip({ input, output, cacheRead, cacheWrite, total, tot
   return (
     <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Token Breakdown</p>
+        <p className="ui-kicker">Token Breakdown</p>
         <p className="text-2xs text-[var(--text-tertiary)]">tokens</p>
       </div>
       <div className="space-y-1 mb-2">

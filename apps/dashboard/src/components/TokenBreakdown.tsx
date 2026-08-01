@@ -30,7 +30,7 @@ function TokenTooltip({ active, payload }: { active?: boolean; payload?: Array<{
   const d = payload[0].payload as Record<string, unknown>;
   return (
     <div className="glass-panel px-4 py-3 text-sm">
-      <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Request #{String(d.index)}</p>
+      <p className="ui-kicker mb-2">Request #{String(d.index)}</p>
       <div className="space-y-1">
         {payload.map((p, index) => (
           <div key={p.dataKey ?? p.name ?? index} className="flex items-center gap-2 text-xs">
