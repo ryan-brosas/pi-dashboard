@@ -10,7 +10,6 @@ import {
   X,
   Table,
   CaretDown,
-  Database,
   DownloadSimple,
 } from '@phosphor-icons/react';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
@@ -198,14 +197,14 @@ const INLINE_RE = /(\*\*[^*]+?\*\*|__[^_]+?__|~~[^~]+?~~|\*[^*]+?\*|_[^_]+?_|`[^
 const InlineMarkdown = memo(function InlineMarkdown({ text }: { text: string }) {
   const tokens = text.split(INLINE_RE).filter(Boolean);
   return (
-    <span className="text-zinc-600 dark:text-zinc-300">
+    <span className="text-[var(--text-secondary)]">
       {tokens.map((tok, i) => {
-        if (tok.startsWith('**')) return <strong key={i} className="font-semibold text-zinc-800 dark:text-zinc-200">{tok.slice(2, -2)}</strong>;
-        if (tok.startsWith('__')) return <strong key={i} className="font-semibold text-zinc-800 dark:text-zinc-200">{tok.slice(2, -2)}</strong>;
+        if (tok.startsWith('**')) return <strong key={i} className="font-semibold text-[var(--text-primary)]">{tok.slice(2, -2)}</strong>;
+        if (tok.startsWith('__')) return <strong key={i} className="font-semibold text-[var(--text-primary)]">{tok.slice(2, -2)}</strong>;
         if (tok.startsWith('~~')) return <del key={i}>{tok.slice(2, -2)}</del>;
         if (tok.startsWith('*')) return <em key={i} className="italic">{tok.slice(1, -1)}</em>;
         if (tok.startsWith('_')) return <em key={i} className="italic">{tok.slice(1, -1)}</em>;
-        if (tok.startsWith('`')) return <code key={i} className="bg-zinc-100 dark:bg-zinc-900 rounded px-1 font-mono text-[11px]">{tok.slice(1, -1)}</code>;
+        if (tok.startsWith('`')) return <code key={i} className="bg-[var(--surface-inset)] rounded-sm px-1 font-mono text-2xs">{tok.slice(1, -1)}</code>;
         if (tok.startsWith('[')) {
           const m = tok.match(/\[(.+?)\]\((.+?)\)/);
           if (m) return <a key={i} href={m[2]} className="text-accent underline" target="_blank" rel="noopener noreferrer">{m[1]}</a>;
@@ -219,7 +218,7 @@ const InlineMarkdown = memo(function InlineMarkdown({ text }: { text: string }) 
 const MarkdownSpan = memo(function MarkdownSpan({ text }: { text: string }) {
   const tier = markdownTier(text);
   if (tier === 0) {
-    return <span className="text-zinc-600 dark:text-zinc-300">{text}</span>;
+    return <span className="text-[var(--text-secondary)]">{text}</span>;
   }
   if (tier === 1) {
     return <InlineMarkdown text={text} />;
@@ -234,32 +233,32 @@ const MarkdownSpan = memo(function MarkdownSpan({ text }: { text: string }) {
         a: ({ href, children }) => (
           <a href={href} className="text-accent underline" target="_blank" rel="noopener noreferrer">{children}</a>
         ),
-        strong: ({ children }) => <strong className="font-semibold text-zinc-800 dark:text-zinc-200">{children}</strong>,
+        strong: ({ children }) => <strong className="font-semibold text-[var(--text-primary)]">{children}</strong>,
         em: ({ children }) => <em className="italic">{children}</em>,
         code: ({ className, children }) => {
           if (!className || !className.startsWith('language-')) {
-            return <code className="bg-zinc-100 dark:bg-zinc-900 rounded px-1 font-mono text-[11px]">{children}</code>;
+            return <code className="bg-[var(--surface-inset)] rounded-sm px-1 font-mono text-2xs">{children}</code>;
           }
           const lang = className.replace('language-', '');
           return (
-            <pre className="bg-zinc-100 dark:bg-zinc-900 rounded px-1.5 py-0.5 my-0.5 overflow-x-auto">
-              {lang && <div className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">{lang}</div>}
-              <code className="font-mono text-[11px]">{children}</code>
+            <pre className="bg-[var(--surface-inset)] rounded-sm px-1.5 py-0.5 my-0.5 overflow-x-auto">
+              {lang && <div className="ui-kicker mb-0.5">{lang}</div>}
+              <code className="font-mono text-2xs">{children}</code>
             </pre>
           );
         },
         blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-zinc-300 dark:border-zinc-600 pl-2 italic text-zinc-500 dark:text-zinc-400 my-0.5">{children}</blockquote>
+          <blockquote className="border-l-2 border-[var(--border-strong)] pl-2 italic text-[var(--text-secondary)] my-0.5">{children}</blockquote>
         ),
         ul: ({ children }) => <ul className="list-disc pl-4 my-0.5">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal pl-4 my-0.5">{children}</ol>,
         li: ({ children }) => <li>{children}</li>,
-        table: ({ children }) => <table className="border-collapse text-[11px] my-1 w-full">{children}</table>,
-        thead: ({ children }) => <thead className="bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200/60 dark:border-white/[0.06]">{children}</thead>,
+        table: ({ children }) => <table className="border-collapse text-2xs my-1 w-full">{children}</table>,
+        thead: ({ children }) => <thead className="bg-[var(--surface-inset)] border-b border-[var(--border)]">{children}</thead>,
         tbody: ({ children }) => <tbody>{children}</tbody>,
-        tr: ({ children }) => <tr className="border-b border-zinc-200/40 dark:border-white/[0.04]">{children}</tr>,
-        th: ({ children }) => <th className="px-2 py-1 text-left font-medium text-zinc-600 dark:text-zinc-300">{children}</th>,
-        td: ({ children }) => <td className="px-2 py-1 text-zinc-600 dark:text-zinc-300">{children}</td>,
+        tr: ({ children }) => <tr className="border-b border-[var(--border-subtle)]">{children}</tr>,
+        th: ({ children }) => <th className="px-2 py-1 text-left font-medium text-[var(--text-secondary)]">{children}</th>,
+        td: ({ children }) => <td className="px-2 py-1 text-[var(--text-secondary)]">{children}</td>,
         br: () => <br />,
       } as Components}
     >
@@ -499,9 +498,9 @@ function detailColumns(columns: string[]): string[] {
 
 function SkeletonRow({ cols }: { cols: number }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2 border-b border-zinc-200/40 dark:border-white/[0.04]">
+    <div className="flex items-center gap-3 px-3 py-2 border-b border-[var(--border-subtle)]">
       {Array.from({ length: cols }).map((_, i) => (
-        <div key={i} className="h-3 rounded bg-zinc-200/60 dark:bg-zinc-700/40 animate-pulse" style={{ width: `${60 + (i * 17 % 30)}px` }} />
+        <div key={i} className="h-3 rounded-sm bg-[var(--surface-inset)] animate-pulse" style={{ width: `${60 + (i * 17 % 30)}px` }} />
       ))}
     </div>
   );
@@ -590,7 +589,7 @@ const cmLightHighlight = HighlightStyle.define([
   { tag: tags.special(tags.string), color: 'var(--accent)' },
   { tag: tags.escape, color: 'var(--accent)' },
   { tag: tags.meta, color: 'var(--text-secondary)' },
-  { tag: tags.invalid, color: 'var(--chart-danger)' },
+  { tag: tags.invalid, color: 'var(--danger)' },
 ], { themeType: 'light' });
 
 const cmDarkHighlight = HighlightStyle.define([
@@ -626,7 +625,7 @@ const cmDarkHighlight = HighlightStyle.define([
   { tag: tags.special(tags.string), color: 'var(--accent)' },
   { tag: tags.escape, color: 'var(--accent)' },
   { tag: tags.meta, color: 'var(--text-secondary)' },
-  { tag: tags.invalid, color: 'var(--chart-danger)' },
+  { tag: tags.invalid, color: 'var(--danger)' },
 ], { themeType: 'dark' });
 
 // Custom completion source that always suggests tables, columns, and SQL keywords.
@@ -1186,26 +1185,25 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
   }, [result, displayColumns, tree, groupByCols, isTrivialTree]);
 
   return (
-    <div className="bg-white/80 dark:bg-zinc-800/40 border border-zinc-200/60 dark:border-white/[0.06] rounded-2xl overflow-hidden flex flex-col min-h-0 h-full">
+    <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-md overflow-hidden flex flex-col min-h-0 h-full">
       {/* Header — title + collapsed query + collapse toggle */}
       <div
         onClick={() => editorCollapsed ? expandEditor() : (result ? collapseEditor() : undefined)}
-        className={`flex items-center gap-2 px-4 py-3 border-b border-zinc-200/60 dark:border-white/[0.06] shrink-0 transition-colors duration-150 ${result ? 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-white/[0.04]' : ''}`}
+        className={`flex items-center gap-2 px-4 py-3 border-b border-[var(--border)] shrink-0 transition-colors duration-150 ${result ? 'cursor-pointer hover:bg-[var(--surface-inset)]' : ''}`}
       >
-        <Database size={16} className="text-accent shrink-0" weight="bold" />
-        <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-300 shrink-0">SQL Playground</h2>
-        <span className="text-[10px] metric-mono text-zinc-400 dark:text-zinc-500 shrink-0">DuckDB WASM · in-browser</span>
+        <h2 className="ui-title shrink-0">SQL playground</h2>
+        <span className="text-2xs metric-mono text-[var(--text-tertiary)] shrink-0">DuckDB WASM · in-browser</span>
         {editorCollapsed && sqlPreview && (
           <>
-            <span className="text-zinc-300 dark:text-zinc-600 shrink-0">·</span>
-            <code className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 truncate min-w-0">{sqlPreview}</code>
+            <span className="text-[var(--text-separator)] shrink-0">·</span>
+            <code className="text-2xs font-mono text-[var(--text-secondary)] truncate min-w-0">{sqlPreview}</code>
           </>
         )}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
           {editorCollapsed && (
             <button
               onClick={expandEditor}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/[0.06] dark:hover:text-zinc-300"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]"
               aria-label="Expand editor"
               title="Expand editor"
             >
@@ -1215,7 +1213,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
           {!editorCollapsed && result && (
             <button
               onClick={collapseEditor}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/[0.06] dark:hover:text-zinc-300"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]"
               aria-label="Collapse editor"
               title="Collapse editor"
             >
@@ -1234,18 +1232,18 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
       >
       <div ref={editorContentRef} className="px-4 pt-3 space-y-2">
         {/* SQL editor */}
-        <div className="relative rounded-2xl border border-zinc-200/60 dark:border-white/[0.06] bg-white/60 dark:bg-zinc-800/40 overflow-hidden transition-colors focus-within:border-accent/40 dark:focus-within:border-accent/40">
+        <div className="relative rounded-md border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-colors focus-within:border-accent/40 dark:focus-within:border-accent/40">
           <div ref={editorRef} className="min-h-[120px] max-h-[280px] overflow-auto" />
           {/* Bottom bar */}
-          <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-100 dark:border-white/[0.04]">
-            <span className="text-[10px] metric-mono text-zinc-400 dark:text-zinc-500">
+          <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--border-subtle)] dark:border-white/[0.04]">
+            <span className="text-2xs metric-mono text-[var(--text-tertiary)]">
               {lineCount}L
             </span>
             <div className="flex items-center gap-1.5">
               {sql.trim() && !result && (
                 <button
                   onClick={clearAll}
-                  className="p-1.5 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.06] active:scale-[0.97] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                  className="p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)] active:scale-[0.97] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                   title="Clear"
                 >
                   <X size={12} />
@@ -1254,7 +1252,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
               <button
                 onClick={() => runCallbackRef.current()}
                 disabled={running || !sql.trim()}
-                className="inline-flex h-7 items-center justify-center gap-1 rounded-lg px-2.5 text-[10px] font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed bg-accent text-[var(--accent-foreground)] hover:bg-accent/90"
+                className="inline-flex h-7 items-center justify-center gap-1 rounded-md px-2.5 text-2xs font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed bg-accent text-[var(--accent-foreground)] hover:bg-accent/90"
               >
                 {running ? (
                   <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
@@ -1263,7 +1261,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                 )}
                 Run
               </button>
-              <span className="text-[10px] metric-mono text-zinc-400 dark:text-zinc-500 ml-1">⌘↵</span>
+              <span className="text-2xs metric-mono text-[var(--text-tertiary)] ml-1">⌘↵</span>
             </div>
           </div>
         </div>
@@ -1282,7 +1280,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                 setError(null);
                 runQueryInternal(eq.sql, activeSessionId);
               }}
-              className="px-3 py-1.5 text-[11px] font-medium rounded-lg border border-zinc-200/60 dark:border-white/[0.06] bg-white/60 dark:bg-zinc-800/40 text-zinc-500 dark:text-zinc-400 hover:border-accent/30 hover:text-accent dark:hover:border-accent/40 dark:hover:text-accent-light transition-all duration-200 active:scale-[0.97]"
+              className="px-3 py-1.5 text-2xs font-medium rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-accent/30 hover:text-accent dark:hover:border-accent/40 dark:hover:text-accent-light transition-all duration-200 active:scale-[0.97]"
             >
               {eq.label}
             </button>
@@ -1298,17 +1296,17 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
               setDragOverZone(false);
           }}
           onDrop={handleDrop}
-          className={`rounded-xl border-2 border-dashed h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
+          className={`rounded-md border-2 border-dashed h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
             zoneGroupByCols.length > 0 || dragOverZone
               ? 'border-accent/40 bg-accent/5 dark:bg-accent/10'
-              : 'border-zinc-200/60 dark:border-white/[0.06] bg-white/40 dark:bg-zinc-800/20'
+              : 'border-[var(--border)] bg-[var(--surface)]'
           }`}
         >
           <div className="flex items-center gap-2 px-3 h-full">
-            <DotsSixVertical size={12} className={zoneGroupByCols.length > 0 ? 'text-accent/60' : 'text-zinc-400 dark:text-zinc-500 opacity-40'} />
+            <DotsSixVertical size={12} className={zoneGroupByCols.length > 0 ? 'text-accent/60' : 'text-[var(--text-tertiary)] opacity-40'} />
             {zoneGroupByCols.length > 0 ? (
               <>
-                <span className="text-[10px] font-medium shrink-0 text-accent">Grouped by</span>
+                <span className="text-2xs font-medium shrink-0 text-accent">Grouped by</span>
                 <AnimatePresence>
                   {zoneGroupByCols.map((col) => (
                     <motion.span
@@ -1316,10 +1314,10 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border border-accent/30 bg-accent/10 text-accent font-mono"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-2xs border border-accent/30 bg-accent/10 text-accent font-mono"
                     >
                       {fmtHeader(col)}
-                      <button onClick={() => removeGroupBy(col)} className="rounded p-0.5 opacity-50 hover:opacity-100 transition-opacity">
+                      <button onClick={() => removeGroupBy(col)} className="rounded-sm p-0.5 opacity-50 hover:opacity-100 transition-opacity">
                         <X size={10} />
                       </button>
                     </motion.span>
@@ -1327,7 +1325,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                 </AnimatePresence>
               </>
             ) : (
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              <span className="text-2xs text-[var(--text-tertiary)]">
                 {result ? 'Drag column headers here to group and aggregate' : 'Run a query, then drag column headers into this zone to group'}
               </span>
             )}
@@ -1337,7 +1335,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
         {/* Error */}
         {error && (
           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-            className="p-3 rounded-xl border border-red-200/40 dark:border-red-500/20 bg-red-50/50 dark:bg-red-500/5"
+            className="p-3 rounded-md border border-red-200/40 dark:border-red-500/20 bg-red-50/50 dark:bg-red-500/5"
           >
             <div className="flex items-start gap-3">
               <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-red-500/10">
@@ -1345,7 +1343,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium mb-0.5 text-red-600 dark:text-red-400">Query Error</p>
-                <pre className="text-[11px] whitespace-pre-wrap break-all font-mono text-zinc-600 dark:text-zinc-300">{error}</pre>
+                <pre className="text-2xs whitespace-pre-wrap break-all font-mono text-[var(--text-secondary)]">{error}</pre>
               </div>
             </div>
           </motion.div>
@@ -1363,31 +1361,31 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
               setDragOverZone(false);
           }}
           onDrop={handleDrop}
-          className={`rounded-xl border-2 border-dashed mx-4 mt-2 mb-2 h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
+          className={`rounded-md border-2 border-dashed mx-4 mt-2 mb-2 h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
             zoneGroupByCols.length > 0 || dragOverZone
               ? 'border-accent/40 bg-accent/5 dark:bg-accent/10'
-              : 'border-zinc-200/60 dark:border-white/[0.06] bg-white/40 dark:bg-zinc-800/20'
+              : 'border-[var(--border)] bg-[var(--surface)]'
           }`}
         >
           <div className="flex items-center gap-2 px-3 h-full">
-            <DotsSixVertical size={12} className={zoneGroupByCols.length > 0 ? 'text-accent/60' : 'text-zinc-400 dark:text-zinc-500 opacity-40'} />
+            <DotsSixVertical size={12} className={zoneGroupByCols.length > 0 ? 'text-accent/60' : 'text-[var(--text-tertiary)] opacity-40'} />
             {zoneGroupByCols.length > 0 ? (
               <>
-                <span className="text-[10px] font-medium shrink-0 text-accent">Grouped by</span>
+                <span className="text-2xs font-medium shrink-0 text-accent">Grouped by</span>
                 {zoneGroupByCols.map((col) => (
                   <span
                     key={col}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border border-accent/30 bg-accent/10 text-accent font-mono"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-2xs border border-accent/30 bg-accent/10 text-accent font-mono"
                   >
                     {fmtHeader(col)}
-                    <button onClick={() => removeGroupBy(col)} className="rounded p-0.5 opacity-50 hover:opacity-100 transition-opacity">
+                    <button onClick={() => removeGroupBy(col)} className="rounded-sm p-0.5 opacity-50 hover:opacity-100 transition-opacity">
                       <X size={10} />
                     </button>
                   </span>
                 ))}
               </>
             ) : (
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              <span className="text-2xs text-[var(--text-tertiary)]">
                 Drag column headers here to group and aggregate
               </span>
             )}
@@ -1397,9 +1395,9 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
 
       {/* Loading skeleton */}
       {running && !result && (
-        <div className="m-4 rounded-2xl overflow-hidden border border-zinc-200/60 dark:border-white/[0.06] flex-1 min-h-0">
-          <div className="px-3 py-2 border-b border-zinc-200/40 dark:border-white/[0.04] bg-white dark:bg-zinc-800">
-            <div className="h-3 w-32 rounded bg-zinc-200/60 dark:bg-zinc-700/40 animate-pulse" />
+        <div className="m-4 rounded-md overflow-hidden border border-[var(--border)] flex-1 min-h-0">
+          <div className="px-3 py-2 border-b border-[var(--border-subtle)] bg-white">
+            <div className="h-3 w-32 rounded-sm bg-[var(--surface-inset)] animate-pulse" />
           </div>
           {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={4} />)}
         </div>
@@ -1407,13 +1405,13 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
 
       {/* Empty */}
       {!result && !running && !error && !editorCollapsed && (
-        <div className="m-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.06] p-10 flex-1 min-h-0 flex flex-col items-center justify-center bg-white/40 dark:bg-zinc-800/20">
+        <div className="m-4 rounded-md border border-[var(--border)] p-10 flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--surface)]">
           <div className="flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-zinc-100 dark:bg-white/[0.04]">
-              <Table size={20} className="text-zinc-400 dark:text-zinc-500" />
+            <div className="w-10 h-10 rounded-md flex items-center justify-center mb-3 bg-[var(--surface-inset)] dark:bg-white/[0.04]">
+              <Table size={20} className="text-[var(--text-tertiary)]" />
             </div>
-            <p className="text-sm font-medium mb-0.5 text-zinc-600 dark:text-zinc-300">No data yet</p>
-            <p className="text-xs max-w-sm text-zinc-400 dark:text-zinc-500">
+            <p className="text-sm font-medium mb-0.5 text-[var(--text-secondary)]">No data yet</p>
+            <p className="text-xs max-w-sm text-[var(--text-tertiary)]">
               Write a SQL query and hit run, or pick an example query to explore your telemetry data with DuckDB.
             </p>
           </div>
@@ -1423,7 +1421,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
       {/* Results */}
       {result && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className={'relative mx-4 mb-4 ' + (editorCollapsed ? 'mt-0 ' : 'mt-2 ') + 'rounded-2xl border border-zinc-200/60 dark:border-white/[0.06] flex-1 min-h-0 flex flex-col bg-white dark:bg-zinc-800 overflow-hidden'}
+          className={'relative mx-4 mb-4 ' + (editorCollapsed ? 'mt-0 ' : 'mt-2 ') + 'rounded-md border border-[var(--border)] flex-1 min-h-0 flex flex-col bg-[var(--surface-raised)] overflow-hidden'}
         >
           <div ref={scrollContainerRef} className="overflow-auto flex-1 min-h-0 max-h-full custom-scrollbar" style={{ overscrollBehavior: 'none' }}>
             <table className="text-left" style={{ tableLayout: 'fixed', width: '100%' }}>
@@ -1433,15 +1431,15 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                   return <col key={col} style={{ width: w + 'px', minWidth: w + 'px' }} />;
                 })}
               </colgroup>
-              <thead ref={theadRef} className="sticky top-0 z-30 bg-white dark:bg-zinc-800">
-                <tr className="border-b border-zinc-200/60 dark:border-white/[0.06]">
+              <thead ref={theadRef} className="sticky top-0 z-30 bg-white">
+                <tr className="border-b border-[var(--border)]">
                   {displayColumns.map((col) => (
                     <th
                       key={col}
                       draggable
                       onDragStart={(e) => handleHeaderDragStart(e, col)}
                       onDragEnd={handleHeaderDragEnd}
-                      className={'px-3 py-2 text-[10px] font-medium tracking-wider cursor-grab active:cursor-grabbing select-none transition-colors hover:text-accent whitespace-nowrap' + (draggedCol === col ? ' text-accent' : ' text-zinc-400 dark:text-zinc-500')}
+                      className={'px-3 py-2 text-2xs font-medium tracking-wider cursor-grab active:cursor-grabbing select-none transition-colors hover:text-accent whitespace-nowrap' + (draggedCol === col ? ' text-accent' : ' text-[var(--text-tertiary)]')}
                     >
                       <span className="truncate">{fmtHeader(col)}</span>
                     </th>
@@ -1475,22 +1473,22 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                             <tr
                               key={virtualItem.key}
                               data-index={virtualItem.index}
-                              className="group/row cursor-pointer transition-colors duration-150 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-[var(--surface-muted)] border-b border-zinc-200/40 dark:border-white/[0.04]"
+                              className="group/row cursor-pointer transition-colors duration-150 bg-[var(--surface-raised)] hover:bg-[var(--surface-inset)] dark:hover:bg-[var(--surface-muted)] border-b border-[var(--border-subtle)]"
                               onClick={() => {
                                 if (hasChildren) toggleExpanded(node.id);
                                 else toggleDetailExpanded(node.id);
                               }}
                             >
-                              <td className="py-2 px-3 transition-colors duration-150 group-hover/row:bg-zinc-50 dark:group-hover/row:bg-[var(--surface-muted)]">
+                              <td className="py-2 px-3 transition-colors duration-150 group-hover/row:bg-[var(--surface-inset)] dark:group-hover/row:bg-[var(--surface-muted)]">
                                 <div className="flex items-center gap-2" style={{ paddingLeft: (vRow.depth * 16) + 'px' }}>
                                   <div className="shrink-0 flex items-center justify-center w-4">
                                     <div className={'transition-transform duration-200' + (isExpanded ? ' rotate-90' : '')}>
-                                      <CaretRight size={12} className="text-zinc-400 dark:text-zinc-500" />
+                                      <CaretRight size={12} className="text-[var(--text-tertiary)]" />
                                     </div>
                                   </div>
-                                  <div className="text-xs font-medium truncate text-zinc-600 dark:text-zinc-300 min-w-0">
+                                  <div className="text-xs font-medium truncate text-[var(--text-secondary)] min-w-0">
                                     {node.value === null ? (
-                                      <span className="italic text-zinc-400 dark:text-zinc-500">NULL</span>
+                                      <span className="italic text-[var(--text-tertiary)]">NULL</span>
                                     ) : (
                                       String(node.value)
                                     )}
@@ -1498,7 +1496,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                                 </div>
                               </td>
                               {displayColumns.slice(1).map((_, i) => (
-                                <td key={i} className="py-2 border-b border-zinc-200/40 dark:border-white/[0.04] transition-colors duration-150 group-hover/row:bg-zinc-50 dark:group-hover/row:bg-[var(--surface-muted)]" />
+                                <td key={i} className="py-2 border-b border-[var(--border-subtle)] transition-colors duration-150 group-hover/row:bg-[var(--surface-inset)] dark:group-hover/row:bg-[var(--surface-muted)]" />
                               ))}
                             </tr>
                           );
@@ -1517,7 +1515,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                               key={virtualItem.key}
                               data-index={virtualItem.index}
                               ref={rowVirtualizer.measureElement}
-                              className="group/row border-b border-zinc-200/40 dark:border-white/[0.04] transition-colors duration-150 hover:bg-zinc-50 dark:hover:bg-[var(--surface-muted)]"
+                              className="group/row border-b border-[var(--border-subtle)] transition-colors duration-150 hover:bg-[var(--surface-inset)] dark:hover:bg-[var(--surface-muted)]"
                             >
                               {detailColIndicesMemo.map((colIdx, j) => {
                                 const val = colIdx !== -1 ? dataRow[colIdx] : null;
@@ -1528,16 +1526,16 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                                 return (
                                   <td
                                     key={j}
-                                    className={'py-1.5 px-3 text-[11px] align-top' + (longText ? ' whitespace-pre-wrap break-words leading-relaxed' : ' whitespace-nowrap') + (isNum ? ' metric-mono tabular-nums' : '') + (isFirst ? ' transition-colors duration-150 group-hover/row:bg-zinc-50 dark:group-hover/row:bg-[var(--surface-muted)]' : '')}
+                                    className={'py-1.5 px-3 text-2xs align-top' + (longText ? ' whitespace-pre-wrap break-words leading-relaxed' : ' whitespace-nowrap') + (isNum ? ' metric-mono tabular-nums' : '') + (isFirst ? ' transition-colors duration-150 group-hover/row:bg-[var(--surface-inset)] dark:group-hover/row:bg-[var(--surface-muted)]' : '')}
                                   >
                                     <div className={longText ? '' : 'flex items-center truncate'}>
                                       {isFirst && <span style={{ display: 'inline-block', width: ((vRow.depth + 1) * 16 + 28) + 'px', flexShrink: 0 }} />}
                                       {val === null || val === undefined ? (
-                                        <span className="italic text-zinc-400 dark:text-zinc-500">NULL</span>
+                                        <span className="italic text-[var(--text-tertiary)]">NULL</span>
                                       ) : longText && typeof val === 'string' ? (
                                         <MarkdownSpan text={val} />
                                       ) : (
-                                        <span className={isNum ? 'text-zinc-800 dark:text-zinc-200' : 'text-zinc-600 dark:text-zinc-300'}>
+                                        <span className={isNum ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}>
                                           {fmtCell(val, colName)}
                                         </span>
                                       )}
@@ -1557,7 +1555,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                               key={virtualItem.key}
                               data-index={virtualItem.index}
                               ref={rowVirtualizer.measureElement}
-                              className="group/row border-b border-zinc-200/40 dark:border-white/[0.04] transition-colors duration-150 hover:bg-zinc-50 dark:hover:bg-[var(--surface-muted)]"
+                              className="group/row border-b border-[var(--border-subtle)] transition-colors duration-150 hover:bg-[var(--surface-inset)] dark:hover:bg-[var(--surface-muted)]"
                             >
                               {flatColIndices.map((colIdx, j) => {
                                 const val = colIdx !== -1 ? dataRow[colIdx] : null;
@@ -1567,15 +1565,15 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                                 return (
                                   <td
                                     key={j}
-                                    className={'py-2 px-3 text-xs align-top' + (longText ? ' whitespace-pre-wrap break-words leading-relaxed' : ' whitespace-nowrap') + (isNum ? ' metric-mono tabular-nums' : '') + (j === 0 ? ' transition-colors duration-150 group-hover/row:bg-zinc-50 dark:group-hover/row:bg-[var(--surface-muted)]' : '')}
+                                    className={'py-2 px-3 text-xs align-top' + (longText ? ' whitespace-pre-wrap break-words leading-relaxed' : ' whitespace-nowrap') + (isNum ? ' metric-mono tabular-nums' : '') + (j === 0 ? ' transition-colors duration-150 group-hover/row:bg-[var(--surface-inset)] dark:group-hover/row:bg-[var(--surface-muted)]' : '')}
                                   >
                                     <div className={longText ? '' : 'truncate max-w-[240px]'}>
                                       {val === null || val === undefined ? (
-                                        <span className="italic text-[10px] text-zinc-400 dark:text-zinc-500">NULL</span>
+                                        <span className="italic text-2xs text-[var(--text-tertiary)]">NULL</span>
                                       ) : longText && typeof val === 'string' ? (
                                         <MarkdownSpan text={val} />
                                       ) : (
-                                        <span className={isNum ? 'text-zinc-800 dark:text-zinc-200' : 'text-zinc-600 dark:text-zinc-300'}>
+                                        <span className={isNum ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}>
                                           {fmtCell(val, col)}
                                         </span>
                                       )}
@@ -1619,7 +1617,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                  className="absolute left-0 right-0 z-20 cursor-pointer bg-white/95 dark:bg-zinc-800/95 backdrop-blur-sm border-t border-zinc-200/60 dark:border-white/[0.06] border-b border-zinc-200/60 dark:border-white/[0.06] shadow-sm shadow-zinc-200/40 dark:shadow-black/20"
+                  className="absolute left-0 right-0 z-20 cursor-pointer bg-[var(--surface-raised)] backdrop-blur-sm border-t border-[var(--border)] border-b border-[var(--border)] shadow-sm shadow-black/10 dark:shadow-black/20"
                   style={{ top: theadHeight - 1 }}
                   onClick={() => {
                     if (hasChildren) toggleExpanded(node.id);
@@ -1629,22 +1627,22 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                   <div className="flex items-center gap-2 px-3 py-2" style={{ paddingLeft: (pinnedGroup.depth * 16 + 13) + 'px' }}>
                     <div className="shrink-0 flex items-center justify-center w-4">
                       <div className={'transition-transform duration-200' + (isExpanded ? ' rotate-90' : '')}>
-                        <CaretRight size={12} className="text-zinc-400 dark:text-zinc-500" />
+                        <CaretRight size={12} className="text-[var(--text-tertiary)]" />
                       </div>
                     </div>
                     {breadcrumbs.length > 1 ? (
                       <div className="flex items-center gap-1 min-w-0 text-xs font-medium truncate">
                         {breadcrumbs.map((crumb, i) => (
                           <span key={i} className="contents">
-                            {i > 0 && <CaretRight size={8} className="text-zinc-300 dark:text-zinc-600 shrink-0" />}
+                            {i > 0 && <CaretRight size={8} className="text-[var(--text-separator)] shrink-0" />}
                             <span
                               className={i === breadcrumbs.length - 1
-                                ? 'text-zinc-600 dark:text-zinc-300'
-                                : 'text-zinc-400 dark:text-zinc-500'
+                                ? 'text-[var(--text-secondary)]'
+                                : 'text-[var(--text-tertiary)]'
                               }
                             >
                               {crumb.value === null
-                                ? <span className="italic text-zinc-400 dark:text-zinc-500">NULL</span>
+                                ? <span className="italic text-[var(--text-tertiary)]">NULL</span>
                                 : String(crumb.value)
                               }
                             </span>
@@ -1652,9 +1650,9 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-xs font-medium truncate text-zinc-600 dark:text-zinc-300 min-w-0">
+                      <div className="text-xs font-medium truncate text-[var(--text-secondary)] min-w-0">
                         {node.value === null ? (
-                          <span className="italic text-zinc-400 dark:text-zinc-500">NULL</span>
+                          <span className="italic text-[var(--text-tertiary)]">NULL</span>
                         ) : (
                           String(node.value)
                         )}
@@ -1667,16 +1665,16 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
           </AnimatePresence>
 
           {/* Footer */}
-          <div className="border-t border-zinc-200/60 dark:border-white/[0.06] px-4 py-2 bg-white dark:bg-zinc-800">
+          <div className="border-t border-[var(--border)] px-4 py-2 bg-white">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] tabular-nums flex items-center gap-1.5 metric-mono text-zinc-400 dark:text-zinc-500">
+              <span className="text-2xs tabular-nums flex items-center gap-1.5 metric-mono text-[var(--text-tertiary)]">
                 {running && <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />}
                 {result.rowCount.toLocaleString()} rows
                 {tree && tree.length > 0 && groupByCols.length > 0 && !isTrivialTree ? (' \u00B7 ' + groupByCols.length + ' level' + (groupByCols.length > 1 ? 's' : '')) : ''}
               </span>
               <button
                 onClick={handleDownloadCsv}
-                className="flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium text-zinc-400 transition-colors hover:bg-accent/5 hover:text-accent dark:text-zinc-500 dark:hover:bg-accent/10"
+                className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-2xs font-medium text-[var(--text-tertiary)] transition-colors hover:bg-accent/5 hover:text-accent dark:text-[var(--text-secondary)] dark:hover:bg-accent/10"
                 title="Download current result as CSV"
               >
                 <DownloadSimple size={10} weight="bold" />

@@ -5,19 +5,23 @@ interface Props {
   label: string;
   active: boolean;
   disabled?: boolean;
+  disabledReason?: string;
   onClick: () => void;
   layout: 'rail' | 'bar';
 }
 
-export default function NavTabButton({ icon: Icon, label, active, disabled, onClick, layout }: Props) {
-  const iconColor = active ? 'text-[var(--brand)]' : 'text-[var(--text-tertiary)]';
+export default function NavTabButton({ icon: Icon, label, active, disabled, disabledReason, onClick, layout }: Props) {
+  const hint = disabled ? disabledReason : undefined;
+  const iconColor = active ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]';
   if (layout === 'rail') {
     return (
       <button
         onClick={onClick}
         disabled={disabled}
+        title={hint}
+        aria-label={hint ? `${label} — ${hint}` : undefined}
         aria-current={active ? 'page' : undefined}
-        className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors text-left disabled:cursor-not-allowed disabled:opacity-40 ${
+        className={`relative flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-left disabled:cursor-not-allowed disabled:opacity-40 ${
           active
             ? 'bg-[var(--surface-muted)] text-[var(--text-primary)]'
             : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'
@@ -35,10 +39,12 @@ export default function NavTabButton({ icon: Icon, label, active, disabled, onCl
     <button
       onClick={onClick}
       disabled={disabled}
+      title={hint}
+      aria-label={hint ? `${label} — ${hint}` : undefined}
       aria-current={active ? 'page' : undefined}
-      className={`min-h-11 shrink-0 flex items-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`min-h-11 shrink-0 flex items-center gap-1.5 rounded-md px-3 text-2xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
         active
-          ? 'bg-[var(--surface-muted)] text-[var(--brand)]'
+          ? 'bg-[var(--surface-muted)] text-[var(--text-primary)]'
           : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'
       }`}
     >

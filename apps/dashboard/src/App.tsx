@@ -1,11 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef, Suspense, lazy } from 'react';
-import {
-  FileArrowUp, Pulse, Timer, Flame, Coins, Gauge, Clock, Hash, UploadSimple,
-} from '@phosphor-icons/react';
+import { FileArrowUp, UploadSimple } from '@phosphor-icons/react';
 import {
   DEFAULT_THRESHOLDS, formatCurrency, formatDuration, formatNumber, formatTps, getTpsEvents,
 } from '@pi-tps/metrics-core';
-import type { DataThresholds, ModelInfo } from '@pi-tps/metrics-core';
 import { useTheme } from './hooks/useTheme';
 import { useSessions, type SessionImport } from './hooks/useSessions';
 import { useFileHandler } from './hooks/useFileHandler';
@@ -13,6 +10,7 @@ import { useExtensionApi } from './hooks/useExtensionApi';
 import { useRemoteMetrics } from './hooks/useRemoteMetrics';
 import { useDuckQuery } from './hooks/useDuckQuery';
 import { usePricingCatalog } from './hooks/usePricingCatalog';
+import { useOverviewData } from './hooks/useOverviewData';
 import Logo from './components/Logo';
 import ViewNavigation, { AUTHOR_SITE_URL } from './components/ViewNavigation';
 import NavTabButton from './components/NavTabButton';
@@ -21,8 +19,9 @@ import { VIEW_TABS, type ViewTab } from './components/viewTabs';
 import { MetricPill, TpsPill } from './components/metrics/MetricPill';
 import {
   RequestsTooltip, TotalTimeTooltip, TtftTooltip, StallsTooltip,
-  CostTooltip, TokensTooltip,
+  CostTooltip, TokensTooltip, TpsTooltip,
 } from './components/tooltips';
+import { SmartTooltip } from './components/SmartTooltip';
 import ThemeToggle from './components/ThemeToggle';
 const TimelineChart = lazy(() => import('./components/TimelineChart'));
 const TimingScatter = lazy(() => import('./components/TimingScatter'));
@@ -38,18 +37,8 @@ const ProviderStats = lazy(() => import('./components/ProviderStats'));
 const SqlPlayground = lazy(() => import('./components/SqlPlayground'));
 const UsageDashboard = lazy(() => import('./components/UsageDashboard'));
 const MarketWatch = lazy(() => import('./components/MarketWatch'));
-import { queryUsageDashboard } from './lib/usageQueries';
-import { priceUsageDashboard } from './lib/usagePricing';
-import {
-  querySummary, queryModels, queryDataThresholds, queryTimingBuckets, queryMultiSessionSummary,
-  queryCacheEfficiency, queryTtftDistribution, queryThresholdCrossings, queryAnomalies,
-  queryScatter, queryTokenComposition, queryTimeline,
-} from './lib/queries';
-import type {
-  ConversationSummaryRow, DataThresholdsRow, TimingBucketRow, ModelInfoRow, SessionSummaryRow,
-  CacheOverallSlice, CacheOverTimeInterval, TtftBinRow, ThresholdStat, AnomalyRow,
-  ScatterPoint, TokenCompositionRow, TimelineEventRow,
-} from './lib/queries';
+import { queryModels } from './lib/queries';
+import type { ModelInfoRow } from './lib/queries';
 
 const APP_VERSION = "2.1.0";
 
@@ -116,12 +105,6 @@ export default function App() {
     handleDrop, handleDragOver, handleDragLeave, handleFileSelect, loadSample,
   } = fileData;
 
-  const { data: summary, loading: summaryLoading, error: summaryError } = useDuckQuery<ConversationSummaryRow | null>(
-    () => querySummary(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
   const { data: queryModelsResult } = useDuckQuery<ModelInfoRow[]>(
     () => queryModels(activeSessionId),
     [dbVersion, activeSessionId],
@@ -130,11 +113,6 @@ export default function App() {
 
   const modelList = queryModelsResult ?? [];
 
-  const { data: dashboardUsage } = useDuckQuery(
-    () => queryUsageDashboard('all', { sessionId: activeSessionId, modelId: selectedModel }),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
   useEffect(() => {
     document.documentElement.dataset.version = APP_VERSION;
   }, []);
@@ -150,178 +128,26 @@ export default function App() {
     }
   }, [remoteSnapshot, detailedLoaded, detailedLoading, detailedError, loadDetailed, viewTab]);
 
-  const pricingReady = pricingCatalog.catalog !== null || !pricingCatalog.loading;
-  const pricedDashboardUsage = useMemo(
-    () => dashboardUsage && pricingReady ? priceUsageDashboard(dashboardUsage, pricingCatalog.catalog) : null,
-    [dashboardUsage, pricingCatalog.catalog, pricingReady],
-  );
-
-  // TPS/TTFT per model from the tps_paired table (not available from usage queries).
-  const modelTpsStats = useMemo(() => {
-    const map = new Map<string, { avgTps: number | null; maxTps: number | null; avgTtftMs: number | null }>();
-    for (const m of queryModelsResult ?? []) {
-      map.set(`${m.provider}:${m.modelId}`, {
-        avgTps: m.avgTps, maxTps: m.maxTps, avgTtftMs: m.avgTtftMs,
-      });
-    }
-    return map;
-  }, [queryModelsResult]);
-
-  const summaryModels: ModelInfo[] = useMemo(
-    () => pricedDashboardUsage?.models.map((model) => {
-      const tps = modelTpsStats.get(`${model.provider}:${model.modelId}`);
-      return {
-        modelId: model.modelId,
-        provider: model.provider,
-        callCount: model.calls,
-        totalTokens: model.totalTokens,
-        avgTps: tps?.avgTps ?? null,
-        maxTps: tps?.maxTps ?? null,
-        avgTtftMs: tps?.avgTtftMs ?? null,
-        energyCostUsd: null,
-        energyJoules: null,
-        blendedCostUsd: model.costSource === 'unpriced' ? null : model.resolvedCostUsd,
-        costSource: model.costSource === 'unpriced' ? null : 'tps',
-      };
-    }) ?? [],
-    [pricedDashboardUsage, modelTpsStats],
-  );
-
-  const dashboardModelRouteCount = summaryModels.length || modelList.length;
-  const dashboardCostUsd = pricedDashboardUsage?.summary.totalCostUsd ?? summary?.totalCostUsd ?? null;
-  const dashboardCostEstimated = (pricedDashboardUsage?.summary.estimatedModelCount ?? 0) > 0;
-  const estimatedModelIds = useMemo(
-    () => new Set(pricedDashboardUsage?.models
-      .filter((model) => model.costSource === 'catalog')
-      .map((model) => `${model.provider}:${model.modelId}`) ?? []),
-    [pricedDashboardUsage],
-  );
-
-  const { data: dataThresholds } = useDuckQuery<DataThresholdsRow>(
-    () => queryDataThresholds(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const dataThresholdsJs = useMemo(
-    () =>
-      dataThresholds
-        ? ({
-            cacheThreshold: dataThresholds.cacheThreshold,
-            lowContext: dataThresholds.lowContext,
-            slowTtft: dataThresholds.slowTtft,
-            fastTtft: dataThresholds.fastTtft,
-            highNewInputRatio: dataThresholds.highNewInputRatio,
-            anomalyInputThreshold: dataThresholds.anomalyInputThreshold,
-            cacheDropMinTotal: dataThresholds.cacheDropMinTotal,
-            cacheDropMinInput: dataThresholds.cacheDropMinInput,
-            highInputRatio: dataThresholds.highInputRatio,
-            highInputSeverityToken: dataThresholds.highInputSeverityToken,
-            stallCountThreshold: dataThresholds.stallCountThreshold,
-            stallMsSeverity: dataThresholds.stallMsSeverity,
-          } as DataThresholds)
-        : undefined,
-    [dataThresholds],
-  );
-
-  const { data: buckets } = useDuckQuery<TimingBucketRow[]>(
-    () => queryTimingBuckets(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: multiSummary } = useDuckQuery<{
-    sessionCount: number;
-    totalCalls: number;
-    totalTokens: number;
-    totalOutput: number;
-    totalCostUsd: number | null;
-    totalEnergyJoules: number | null;
-    sessions: SessionSummaryRow[];
-    models: ModelInfoRow[];
-    avgTps: number;
-    weightedTps: number;
-    avgTtft: number;
-    timeRangeStart: string;
-    timeRangeEnd: string;
-  } | null>(
-    () => {
-      if (sessions.size <= 1 || activeSessionId || selectedModel) return Promise.resolve(null);
-      const fileNames = new Map<string, string | null>();
-      for (const [sid, s] of sessions.entries()) {
-        fileNames.set(sid, s.fileName ?? null);
-      }
-      return queryMultiSessionSummary(fileNames);
-    },
-    [dbVersion, sessions.size, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const resolvedMultiSummary = useMemo(() => {
-    if (!multiSummary || !pricedDashboardUsage) return null;
-    const costs = new Map(pricedDashboardUsage?.sessions.map((session) => [session.sessionId, session.costUsd]) ?? []);
-    const resolvedSessions = multiSummary.sessions.map((session) => ({
-      ...session,
-      totalCostUsd: costs.get(session.sessionId) ?? session.totalCostUsd,
-    }));
-    return {
-      ...multiSummary,
-      totalCostUsd: pricedDashboardUsage?.summary.totalCostUsd ?? multiSummary.totalCostUsd,
-      sessions: resolvedSessions,
-      models: summaryModels,
-    };
-  }, [multiSummary, pricedDashboardUsage, summaryModels]);
-
-  const { data: cacheEfficiency } = useDuckQuery<{
-    overall: CacheOverallSlice[];
-    overTime: CacheOverTimeInterval[];
-    hitRate: number;
-  }>(
-    () => queryCacheEfficiency(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: tokenComposition } = useDuckQuery<TokenCompositionRow[]>(
-    () => queryTokenComposition(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: ttftDistribution } = useDuckQuery<{
-    bins: TtftBinRow[];
-    fastCount: number;
-    slowCount: number;
-    percentiles: { label: string; value: number }[];
-  }>(
-    () => queryTtftDistribution(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
-
-  const { data: thresholdStats } = useDuckQuery<ThresholdStat[]>(
-    () => dataThresholds ? queryThresholdCrossings(dataThresholds, activeSessionId, selectedModel) : Promise.resolve([]),
-    [dbVersion, activeSessionId, selectedModel, dataThresholds],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 || !dataThresholds },
-  );
-
-  const { data: anomalies } = useDuckQuery<AnomalyRow[]>(
-    () => dataThresholds ? queryAnomalies(dataThresholds, activeSessionId, selectedModel) : Promise.resolve([]),
-    [dbVersion, activeSessionId, selectedModel, dataThresholds],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 || !dataThresholds },
-  );
-
-  const { data: scatterData } = useDuckQuery<ScatterPoint[]>(
-    () => dataThresholds ? queryScatter(dataThresholds, activeSessionId, selectedModel) : Promise.resolve([]),
-    [dbVersion, activeSessionId, selectedModel, dataThresholds],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 || !dataThresholds },
-  );
-
-  const { data: timelineRows } = useDuckQuery<TimelineEventRow[]>(
-    () => queryTimeline(activeSessionId, selectedModel),
-    [dbVersion, activeSessionId, selectedModel],
-    { skip: viewTab !== "dashboard" || dbVersion === 0 },
-  );
+  const {
+    summary, summaryLoading, summaryError,
+    pricedUsage: pricedDashboardUsage,
+    models: summaryModels,
+    routeCount: dashboardModelRouteCount,
+    costUsd: dashboardCostUsd,
+    costEstimated: dashboardCostEstimated,
+    estimatedModelIds,
+    thresholds: dataThresholdsJs,
+    buckets, resolvedMultiSummary, cacheEfficiency, tokenComposition,
+    ttftDistribution, thresholdStats, anomalies, scatterData, timelineRows,
+  } = useOverviewData({
+    enabled: viewTab === 'dashboard',
+    dbVersion,
+    activeSessionId,
+    selectedModel,
+    sessions,
+    pricingCatalog,
+    modelRows: queryModelsResult ?? null,
+  });
 
   const handlePointClick = useCallback((id: string | null) => setSelectedTpsId(id), []);
   const handleSessionSelect = useCallback((sessionId: string | null) => {
@@ -403,7 +229,7 @@ export default function App() {
             >
               <Logo size={20} />
             </a>
-            <h1 className="sr-only sm:not-sr-only text-[13px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
+            <h1 className="sr-only sm:not-sr-only text-sm font-semibold tracking-tight text-[var(--text-primary)] truncate">
               {VIEW_TABS.find((t) => t.value === viewTab)?.label ?? 'Overview'}
             </h1>
             {modelList.length > 0 && viewTab === 'dashboard' && (
@@ -412,7 +238,7 @@ export default function App() {
                   value={selectedModel ?? ''}
                   onChange={(e) => setSelectedModel(e.target.value || null)}
                   aria-label="Model filter"
-                  className={`appearance-none bg-[var(--surface-muted)] border border-[var(--border)] rounded-md pl-2.5 pr-7 py-1 text-[11px] font-medium text-[var(--text-secondary)] focus:outline-none focus:border-[var(--brand)] max-w-[10rem] truncate`}
+                  className={`appearance-none bg-[var(--surface-muted)] border border-[var(--border)] rounded-md pl-2.5 pr-7 py-1 text-2xs font-medium text-[var(--text-secondary)] focus:outline-none focus:border-[var(--brand)] max-w-[10rem] truncate`}
                 >
                   <option value="">All models</option>
                   {modelList.map((m) => (
@@ -430,7 +256,7 @@ export default function App() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Upload telemetry files"
-              className="flex min-h-11 items-center gap-1 rounded-md px-3 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"
+              className="flex min-h-11 items-center gap-1 rounded-md px-3 text-2xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"
               title="Upload telemetry files"
             >
               <UploadSimple size={12} weight="bold" />
@@ -450,6 +276,7 @@ export default function App() {
                 label={label}
                 active={active}
                 disabled={disabled}
+                disabledReason={disabled ? 'Load telemetry to enable' : undefined}
                 onClick={() => handleViewTabChange(value)}
                 layout="bar"
               />
@@ -532,14 +359,14 @@ export default function App() {
             </div>
           </div>
         ) : (hasLoaded || dbLoading || loading || overviewPreparing) && !summary ? (
-          <div className="max-w-[var(--content-max)] mx-auto px-4 sm:px-6 py-8 space-y-6">
+          <div className="page-shell space-y-5">
             {detailedError ? (
               <div role="alert" className="panel flex items-center justify-between gap-4 px-5 py-3 text-sm text-[var(--text-secondary)]">
                 <span>Detailed analysis could not load. Usage and market data are still available.</span>
                 <button
                   type="button"
                   onClick={() => void loadDetailed()}
-                  className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-muted)]"
+                  className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-muted)]"
                 >
                   Retry
                 </button>
@@ -620,19 +447,19 @@ export default function App() {
               </div>
               <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)] mb-2">Import telemetry</h2>
               <p className="text-sm text-[var(--text-tertiary)] mb-6 leading-relaxed">
-                Drop <code className="metric-mono text-xs bg-[var(--surface-muted)] px-1.5 py-0.5 rounded">.jsonl</code> files, paste JSONL, or load the sample to inspect tokens-per-second, timing, and cost.
+                Drop <code className="metric-mono text-xs bg-[var(--surface-muted)] px-1.5 py-0.5 rounded-sm">.jsonl</code> files, paste JSONL, or load the sample to inspect tokens-per-second, timing, and cost.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full sm:w-auto px-5 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] text-sm font-medium rounded-lg hover:bg-[var(--surface-muted)] transition-colors flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-5 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] text-sm font-medium rounded-md hover:bg-[var(--surface-muted)] transition-colors flex items-center justify-center gap-2"
                 >
                   <UploadSimple size={16} weight="bold" />
                   Upload
                 </button>
                 <button
                   onClick={loadSample}
-                  className="w-full sm:w-auto px-5 py-2 bg-[var(--brand)] text-[var(--text-inverse)] text-sm font-medium rounded-lg hover:bg-[var(--brand-light)] transition-colors"
+                  className="w-full sm:w-auto px-5 py-2 bg-[var(--brand)] text-[var(--text-inverse)] text-sm font-medium rounded-md hover:bg-[var(--brand-light)] transition-colors"
                 >
                   Load sample data
                 </button>
@@ -640,7 +467,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <div className={`max-w-[var(--content-max)] mx-auto px-4 sm:px-6 py-5 space-y-4 ${dragOver ? 'rounded-[var(--panel-radius)] border-2 border-dashed border-[var(--brand)]' : ''}`}>
+          <div className={`page-shell space-y-5 ${dragOver ? 'rounded-[var(--panel-radius)] border-2 border-dashed border-[var(--brand)]' : ''}`}>
             {summary && (
               <>
                 <section
@@ -648,9 +475,13 @@ export default function App() {
                   aria-label="Overview metrics"
                   className="panel sticky top-0 z-20 px-4 py-2.5 sm:px-5"
                 >
+                  <SmartTooltip
+                    preferredPlacement="bottom"
+                    gap={10}
+                    content={<TpsTooltip activeTps={summary.weightedTps} wallTps={summary.weightedWallTps} lossPct={summary.weightedTpsLoss} mode="weighted" />}
+                  >
                   <div className="flex items-center gap-x-4 border-b border-[var(--border)] pb-2">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="status-dot shrink-0" aria-hidden="true" />
+                    <div className="mr-auto flex min-w-0 items-center gap-3">
                       <div className="min-w-0">
                         <p className="ui-kicker">Weighted throughput</p>
                         <div className="flex items-baseline gap-2">
@@ -659,16 +490,17 @@ export default function App() {
                           </span>
                           <span className="text-xs font-medium text-[var(--text-tertiary)]">tok/s</span>
                         </div>
+                        {dashboardModelRouteCount > 0 && (
+                          <p className="hidden truncate text-2xs text-[var(--text-secondary)] md:block">
+                            Across {dashboardModelRouteCount} route{dashboardModelRouteCount === 1 ? '' : 's'}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <p className="hidden min-w-0 text-[11px] text-[var(--text-secondary)] md:mr-auto md:block">
-                      Across {summary.totalCalls.toLocaleString()} calls
-                      {dashboardModelRouteCount > 0 && <> · {dashboardModelRouteCount} route{dashboardModelRouteCount === 1 ? '' : 's'}</>}
-                    </p>
                     <div className="ml-auto flex shrink-0 items-center gap-4">
                       <div>
                         <p className="ui-kicker">Wall pace</p>
-                        <p className="metric-value text-base text-[var(--text-primary)]">{formatTps(summary.weightedWallTps)} <span className="text-[10px] text-[var(--text-tertiary)]">tok/s</span></p>
+                        <p className="metric-value text-base text-[var(--text-primary)]">{formatTps(summary.weightedWallTps)} <span className="text-2xs text-[var(--text-tertiary)]">tok/s</span></p>
                       </div>
                       <div>
                         <p className="ui-kicker">Loss</p>
@@ -678,13 +510,14 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                  </SmartTooltip>
                   <div
                     role="group"
                     aria-label="Overview metric details"
                     tabIndex={0}
-                    className="scrollbar-hide mt-2 flex gap-3 overflow-x-auto pb-0.5 [&>*]:w-[108px] [&>*]:shrink-0 md:grid md:grid-cols-7 md:overflow-visible md:pb-0 md:[&>*]:w-auto md:[&>*]:min-w-0"
+                    className="scrollbar-hide mt-2 flex gap-3 overflow-x-auto pb-0.5 [&>*]:w-[108px] [&>*]:shrink-0 md:grid md:grid-cols-7 md:gap-0 md:overflow-visible md:pb-0 md:[&>*]:w-auto md:[&>*]:min-w-0 md:[&>*]:border-l md:[&>*]:border-[var(--border)] md:[&>*]:pl-3 md:[&>*:first-child]:border-l-0 md:[&>*:first-child]:pl-0"
                   >
-                    <MetricPill inline icon={Pulse} label="Requests" value={formatNumber(summary.totalCalls)} tooltip={
+                    <MetricPill inline label="Requests" value={formatNumber(summary.totalCalls)} tooltip={
                       <RequestsTooltip
                         total={summary.totalCalls}
                         models={summaryModels}
@@ -694,17 +527,17 @@ export default function App() {
                         fastCalls={summary.fastCalls}
                       />
                     } />
-                    <MetricPill inline icon={Timer} label="Total time" value={formatDuration(summary.wallClockMs)} tooltip={<TotalTimeTooltip wallClockMs={summary.wallClockMs} totalTimeMs={summary.totalTimeMs} generationMs={summary.totalGenerationMs} />} />
-                    <TpsPill inline icon={Gauge} label="Avg TPS" activeTps={summary.avgTps} wallTps={summary.avgWallTps} lossPct={summary.tpsLoss} mode="avg" />
-                    <MetricPill inline icon={Clock} label="Avg TTFT" value={formatDuration(Math.round(summary.avgTtft))} tooltip={<TtftTooltip avgTtft={summary.avgTtft} p50={summary.ttftP50} p75={summary.ttftP75} p90={summary.ttftP90} p99={summary.ttftP99} min={summary.minTtft} max={summary.maxTtft} />} />
-                    <MetricPill inline icon={Flame} label="Stalls" value={formatNumber(summary.totalStallCount)} color="ember" tooltip={<StallsTooltip count={summary.totalStallCount} ms={summary.totalStallMs} totalTimeMs={summary.totalTimeMs} />} />
-                    <MetricPill inline icon={Coins} label="Cost" value={formatCurrency(dashboardCostUsd)} unit={dashboardCostEstimated ? 'est.' : undefined} tooltip={<CostTooltip totalCost={dashboardCostUsd} energyCost={null} costSource="tps" models={summaryModels} totalTokens={summary.totalTokens} estimated={dashboardCostEstimated} />} />
-                    <MetricPill inline icon={Hash} label="Tokens" value={formatNumber(summary.totalTokens)} tooltip={<TokensTooltip input={summary.totalInput} output={summary.totalOutput} cacheRead={summary.totalCacheRead} cacheWrite={summary.totalCacheWrite} total={summary.totalTokens} totalCost={dashboardCostUsd} />} />
+                    <MetricPill inline label="Total time" value={formatDuration(summary.wallClockMs)} tooltip={<TotalTimeTooltip wallClockMs={summary.wallClockMs} totalTimeMs={summary.totalTimeMs} generationMs={summary.totalGenerationMs} />} />
+                    <TpsPill inline label="Avg TPS" activeTps={summary.avgTps} wallTps={summary.avgWallTps} lossPct={summary.tpsLoss} mode="avg" />
+                    <MetricPill inline label="Avg TTFT" value={formatDuration(Math.round(summary.avgTtft))} tooltip={<TtftTooltip avgTtft={summary.avgTtft} p50={summary.ttftP50} p75={summary.ttftP75} p90={summary.ttftP90} p99={summary.ttftP99} min={summary.minTtft} max={summary.maxTtft} />} />
+                    <MetricPill inline label="Stalls" value={formatNumber(summary.totalStallCount)} tooltip={<StallsTooltip count={summary.totalStallCount} ms={summary.totalStallMs} totalTimeMs={summary.totalTimeMs} />} />
+                    <MetricPill inline label="Cost" value={formatCurrency(dashboardCostUsd)} unit={dashboardCostEstimated ? 'est.' : undefined} tooltip={<CostTooltip totalCost={dashboardCostUsd} energyCost={null} costSource="tps" models={summaryModels} totalTokens={summary.totalTokens} estimated={dashboardCostEstimated} />} />
+                    <MetricPill inline label="Tokens" value={formatNumber(summary.totalTokens)} tooltip={<TokensTooltip input={summary.totalInput} output={summary.totalOutput} cacheRead={summary.totalCacheRead} cacheWrite={summary.totalCacheWrite} total={summary.totalTokens} totalCost={dashboardCostUsd} />} />
                   </div>
                 </section>
 
                 {pricedDashboardUsage && (pricedDashboardUsage.summary.estimatedModelCount > 0 || pricedDashboardUsage.summary.unpricedModelCount > 0) && (
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-[11px] text-[var(--text-secondary)]">
+                  <div className="rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-2xs text-[var(--text-secondary)]">
                     {pricedDashboardUsage.summary.estimatedModelCount > 0 && `${pricedDashboardUsage.summary.estimatedModelCount} model route${pricedDashboardUsage.summary.estimatedModelCount === 1 ? '' : 's'} use market catalog pricing.`}
                     {pricedDashboardUsage.summary.unpricedModelCount > 0 && ` ${pricedDashboardUsage.summary.unpricedModelCount} route${pricedDashboardUsage.summary.unpricedModelCount === 1 ? '' : 's'} remain unpriced and are excluded from cost.`}
                   </div>
@@ -723,17 +556,6 @@ export default function App() {
                       <TokenBreakdown data={tokenComposition ?? []} />
                     </div>
                     <div className="lg:col-span-4 flex flex-col gap-5">
-                      {summaryModels.length > 1 && (
-                        <Suspense fallback={<div aria-hidden="true" className="h-56 panel animate-pulse" />}>
-                          <ModelPerformance
-                            models={summaryModels}
-                            avgTps={summary?.avgTps ?? 0}
-                            weightedTps={summary?.weightedTps ?? 0}
-                            totalCalls={summary?.totalCalls ?? 0}
-                            estimatedModelIds={estimatedModelIds}
-                          />
-                        </Suspense>
-                      )}
                       <ThresholdAnalysis stats={thresholdStats ?? []} />
                       <AnomalyDetector anomalies={anomalies ?? []} />
                       <RequestInspector
@@ -746,6 +568,15 @@ export default function App() {
                     </div>
                   </div>
                 </Suspense>
+                {summaryModels.length > 1 && (
+                  <Suspense fallback={<div aria-hidden="true" className="h-56 panel animate-pulse" />}>
+                    <ModelPerformance
+                      models={summaryModels}
+                      totalCalls={summary?.totalCalls ?? 0}
+                      estimatedModelIds={estimatedModelIds}
+                    />
+                  </Suspense>
+                )}
                 {resolvedMultiSummary && resolvedMultiSummary.sessionCount > 1 && (
                   <Suspense fallback={<div aria-hidden="true" className="h-80 panel animate-pulse" />}>
                     <SessionScatter multiSummary={resolvedMultiSummary} onSessionClick={handleSessionClick} />

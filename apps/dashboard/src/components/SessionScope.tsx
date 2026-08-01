@@ -1,4 +1,4 @@
-import { CaretDown, FolderOpen, X } from '@phosphor-icons/react';
+import { CaretDown, X } from '@phosphor-icons/react';
 
 export interface SessionOption {
   sessionId: string;
@@ -20,13 +20,12 @@ export default function SessionScope({ sessions, activeSessionId, onSelect, onRe
   const active = sessions.find((s) => s.sessionId === activeSessionId) ?? null;
   return (
     <div className="px-4 sm:px-6 pb-2.5 flex items-center gap-2" aria-busy={loading || undefined}>
-      <FolderOpen size={13} className="text-[var(--text-tertiary)] shrink-0" weight="bold" aria-hidden="true" />
       <div className="relative min-w-0 flex-1 sm:flex-none">
         <select
           value={activeSessionId ?? ''}
           onChange={(e) => onSelect(e.target.value || null)}
           aria-label="Session scope"
-          className="appearance-none h-7 w-full sm:w-56 bg-[var(--surface-muted)] border border-[var(--border)] rounded-md pl-2.5 pr-7 text-[11px] font-medium text-[var(--text-secondary)] focus:outline-none focus:border-[var(--brand)] truncate"
+          className="h-11 w-full appearance-none truncate rounded-md border border-[var(--border)] bg-[var(--surface-muted)] pl-2.5 pr-7 text-2xs font-medium text-[var(--text-secondary)] focus:border-[var(--brand)] focus:outline-none sm:h-7 sm:w-56"
         >
           <option value="">All runs ({sessions.length})</option>
           {sessions.map((s) => (
@@ -38,7 +37,7 @@ export default function SessionScope({ sessions, activeSessionId, onSelect, onRe
         <CaretDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden="true" />
       </div>
       {loading && (
-        <span role="status" aria-live="polite" className="shrink-0 text-[10px] font-medium text-[var(--text-tertiary)]">
+        <span role="status" aria-live="polite" className="shrink-0 text-2xs font-medium text-[var(--text-tertiary)]">
           Loading run…
         </span>
       )}
@@ -46,7 +45,7 @@ export default function SessionScope({ sessions, activeSessionId, onSelect, onRe
         <button
           type="button"
           onClick={() => onRemove(active.sessionId)}
-          className="flex items-center justify-center h-7 w-7 rounded text-[var(--text-tertiary)] hover:text-[var(--brand-text)] transition-colors"
+          className="flex h-11 w-11 items-center justify-center rounded-sm text-[var(--text-tertiary)] transition-colors hover:text-[var(--brand-text)] sm:h-7 sm:w-7"
           title="Remove run"
           aria-label={`Remove ${active.label}`}
         >
@@ -56,7 +55,7 @@ export default function SessionScope({ sessions, activeSessionId, onSelect, onRe
       <button
         type="button"
         onClick={onClearAll}
-        className="shrink-0 h-7 px-2 rounded-md text-[10px] font-medium text-[var(--text-tertiary)] hover:text-[var(--brand-text)] transition-colors border-l border-[var(--border)] pl-3"
+        className="h-11 shrink-0 rounded-md border-l border-[var(--border)] px-2 pl-3 text-2xs font-medium text-[var(--text-tertiary)] transition-colors hover:text-[var(--brand-text)] sm:h-7"
       >
         Clear all
       </button>

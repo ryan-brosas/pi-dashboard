@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 
 vi.mock('child_process', async (importOriginal) => {
@@ -23,9 +24,29 @@ type RegisteredCommand = {
 
 const temporaryRoots: string[] = [];
 
+// The --history handler calls ensureDist() before starting the server. Without
+// a built dashboard it shells out to install and build, but execFile is mocked
+// above, so nothing is produced and the handler bails before the server ever
+// starts. A stub index.html is enough to get past that check.
+const distIndex = join(
+  dirname(fileURLToPath(import.meta.url)), '..', '..', 'dashboard', 'dist', 'index.html',
+);
+let stubbedDistIndex: string | null = null;
+
+function ensureDashboardBundle() {
+  if (existsSync(distIndex)) return;
+  mkdirSync(dirname(distIndex), { recursive: true });
+  writeFileSync(distIndex, '<!doctype html><title>stub</title>');
+  stubbedDistIndex = distIndex;
+}
+
 afterEach(() => {
   delete process.env.PI_CODING_AGENT_SESSION_DIR;
   for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+  if (stubbedDistIndex) {
+    unlinkSync(stubbedDistIndex);
+    stubbedDistIndex = null;
+  }
 });
 
 describe('history dashboard server', () => {
@@ -45,6 +66,7 @@ describe('history dashboard server', () => {
       }),
     ].join('\n') + '\n');
     process.env.PI_CODING_AGENT_SESSION_DIR = root;
+    ensureDashboardBundle();
 
     let command: RegisteredCommand | undefined;
     let shutdown: (() => void) | undefined;

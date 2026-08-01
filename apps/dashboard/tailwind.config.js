@@ -4,6 +4,9 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1rem' }],
+      },
       fontFamily: {
         sans: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
         mono: ['"SFMono-Regular"', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', 'monospace'],
@@ -11,32 +14,6 @@ export default {
       colors: {
         white: '#fafafa',
         black: '#0a0a0a',
-        zinc: {
-          50: '#f7f7f7',
-          100: '#ededed',
-          200: '#e0e0e0',
-          300: '#c7c7c7',
-          400: '#a1a1a1',
-          500: '#737373',
-          600: '#525252',
-          700: '#404040',
-          800: '#262626',
-          900: '#171717',
-          950: '#0a0a0a',
-        },
-        slate: {
-          50: '#f7f7f7',
-          100: '#ededed',
-          200: '#e0e0e0',
-          300: '#c7c7c7',
-          400: '#a1a1a1',
-          500: '#737373',
-          600: '#525252',
-          700: '#404040',
-          800: '#262626',
-          900: '#171717',
-          950: '#0a0a0a',
-        },
         accent: {
           DEFAULT: 'var(--accent)',
           light: 'var(--accent-light)',
@@ -50,14 +27,14 @@ export default {
           muted: 'var(--brand-muted)',
         },
         ember: {
-          DEFAULT: 'var(--chart-danger)',
-          light: 'var(--chart-danger)',
-          dark: 'var(--chart-danger)',
+          DEFAULT: 'var(--danger)',
+          light: 'var(--danger)',
+          dark: 'var(--danger)',
         },
         moss: {
-          DEFAULT: 'var(--chart-positive)',
-          light: 'var(--chart-positive)',
-          dark: 'var(--chart-positive)',
+          DEFAULT: 'var(--success)',
+          light: 'var(--success)',
+          dark: 'var(--success)',
         },
         amber: {
           DEFAULT: 'var(--signal)',
@@ -66,10 +43,9 @@ export default {
         },
       },
       borderRadius: {
-        '2xl': '0.75rem',
-        '3xl': '1rem',
-        '4xl': '1.25rem',
-        '5xl': '1.5rem',
+        sm: '0.25rem',
+        md: '0.5rem',
+        lg: '0.75rem',
       },
       boxShadow: {
         'diffuse': 'none',

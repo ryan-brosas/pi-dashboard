@@ -11,15 +11,18 @@
   --color-yellow: #ecc90f;
 
   --bg: var(--color-black);
-  --chrome: #0d0d0d;
-  --surface: #121212;
-  --surface-raised: #181818;
-  --surface-muted: #0f0f0f;
-  --content-max: 90rem;
+  /* Three surface levels only: page, panel, inset. Older names stay as
+     aliases so every consumer inherits the flatter ramp without edits. */
+  --surface: #101010;
+  --surface-muted: #171717;
+  --chrome: var(--bg);
+  --surface-raised: var(--surface);
+  --overlay: #1c1c1c;
+  --content-max: 100rem;
   --shell-sidebar: 14.5rem;
   --panel-radius: 0.5rem;
-  --border: #262626;
-  --border-strong: #404040;
+  --border: #212121;
+  --border-strong: #303030;
   --text-primary: var(--color-white);
   --text-secondary: #a1a1a1;
   --text-tertiary: #858585;
@@ -29,31 +32,52 @@
   --accent-light: #ffffff;
   --accent-muted: #d4d4d8;
   --accent-foreground: #111111;
+  /* Focus ring stays bright on purpose: visibility beats restraint. */
   --focus-ring: #ff6b6b;
-  --brand: #ff5b5b;
-  --brand-light: #ff7a7a;
-  --brand-muted: #c93636;
-  --brand-text: #ff6b6b;
+  --brand: #d9484c;
+  --brand-light: #e86165;
+  --brand-muted: #a83539;
+  --brand-text: #e5787b;
   --signal: var(--color-yellow);
   --signal-foreground: var(--color-black);
-  --chart-primary: var(--color-red);
-  --chart-secondary: var(--color-yellow);
-  --chart-positive: #6ee7b7;
-  --chart-warning: var(--color-yellow);
-  --chart-danger: #ff8178;
+  --chart-primary: var(--data-1);
+  --chart-secondary: var(--data-4);
+  --chart-positive: var(--data-2);
+  --chart-warning: var(--data-3);
+  --chart-danger: var(--data-5);
   --chart-grid: rgba(250, 250, 250, 0.1);
   --chart-axis: #858585;
+
+  /* Decorative glyph dividers only. Never prose or data. */
+  --text-separator: #646464;
+  --surface-inset: var(--surface-muted);
+  --surface-hover: var(--surface-muted);
+  --border-subtle: #181818;
+
+  /* Categorical series. Deliberately excludes brand red so a data series
+     is never confused with brand, selection, or danger. */
+  --data-1: #7ea6d9;
+  --data-2: #6bb3a5;
+  --data-3: #c9a961;
+  --data-4: #9a8cc4;
+  --data-5: #c98a97;
+
+  /* Semantic status. Disjoint from --data-*. */
+  --danger: #d98080;
+  --success: #7fc3a9;
+  --warning: #d69a4a;
 }
 
 .light {
   color-scheme: light;
-  --bg: #f4f4f4;
-  --chrome: #ffffff;
+  --bg: #f7f7f8;
   --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --surface-muted: #ededed;
-  --border: #e0e0e0;
-  --border-strong: #b0b0b0;
+  --surface-muted: #f1f1f2;
+  --chrome: var(--bg);
+  --surface-raised: var(--surface);
+  --overlay: #ffffff;
+  --border: #e7e7e9;
+  --border-strong: #d3d3d6;
   --text-primary: #0a0a0a;
   --text-secondary: #525252;
   --text-tertiary: #686868;
@@ -70,17 +94,28 @@
   --brand-text: #a9231a;
   --signal: #806700;
   --signal-foreground: #ffffff;
-  --chart-primary: #d83f3f;
-  --chart-secondary: #806700;
-  --chart-positive: #15803d;
-  --chart-warning: #806700;
-  --chart-danger: #b42318;
+  --chart-primary: var(--data-1);
+  --chart-secondary: var(--data-4);
+  --chart-positive: var(--data-2);
+  --chart-warning: var(--data-3);
+  --chart-danger: var(--data-5);
   --chart-grid: rgba(10, 10, 10, 0.08);
   --chart-axis: #686868;
-}
 
-.light .text-zinc-400 {
-  color: var(--text-tertiary);
+  --text-separator: #949494;
+  --surface-inset: var(--surface-muted);
+  --surface-hover: var(--surface-muted);
+  --border-subtle: #efeff1;
+
+  --data-1: #2f5f96;
+  --data-2: #2c7268;
+  --data-3: #8a6a2a;
+  --data-4: #5a4a91;
+  --data-5: #96455c;
+
+  --danger: #a8352b;
+  --success: #2b6b45;
+  --warning: #7a5f16;
 }
 
 html {
@@ -108,24 +143,32 @@ body {
 }
 
 @layer components {
-  .card-surface {
-    background: var(--surface-raised);
+  /* Panels sit flat on the page. Hairline border, no hover shift: a
+     border-colour change on every one of ~14 panels reads as noise. */
+  .card-surface,
+  .panel {
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--panel-radius);
     box-shadow: none;
-    transition: border-color 0.15s ease;
   }
 
   .card-surface:has(:focus-visible),
-  .card-surface:hover {
+  .panel:has(:focus-visible) {
     border-color: var(--border-strong);
   }
 
+  /* Overlays float above panels, so they are the one place that earns
+     elevation. Without it a tooltip merges into the chart beneath it. */
   .glass-panel {
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
+    background: var(--overlay);
+    border: 1px solid var(--border-strong);
     border-radius: var(--panel-radius);
-    box-shadow: none;
+    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.5);
+  }
+
+  .light .glass-panel {
+    box-shadow: 0 8px 24px -8px rgba(10, 10, 10, 0.16);
   }
 
   .metric-mono {
@@ -136,7 +179,7 @@ body {
 
   .ui-kicker {
     color: var(--text-tertiary);
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.12em;
     line-height: 1.2;
@@ -159,15 +202,6 @@ body {
     letter-spacing: -0.04em;
   }
 
-  .text-gradient {
-    color: var(--brand);
-  }
-
-  .shimmer-bg {
-    background: var(--surface-raised);
-    animation: subtle-pulse 2s ease-in-out infinite;
-  }
-
   .skeleton {
     background: var(--surface-muted);
     border-radius: 0.25rem;
@@ -180,45 +214,18 @@ body {
     animation: subtle-pulse 1.6s ease-in-out infinite;
   }
 
-  .panel {
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: var(--panel-radius);
-    box-shadow: none;
-    transition: border-color 0.15s ease;
+  .page-shell {
+    margin-inline: auto;
+    max-width: var(--content-max);
+    padding: 1.5rem 1rem;
   }
 
-  .panel:hover {
-    border-color: var(--border-strong);
+  @media (min-width: 640px) {
+    .page-shell {
+      padding: 1.5rem;
+    }
   }
 
-  .ui-label {
-    color: var(--text-tertiary);
-    font-size: 0.625rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    line-height: 1.2;
-    text-transform: uppercase;
-  }
-
-  .status-dot {
-    position: relative;
-    width: 6px;
-    height: 6px;
-    border-radius: 9999px;
-    background: var(--brand);
-  }
-
-  .status-dot::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: 9999px;
-    background: var(--brand);
-    animation: status-pulse 2s ease-out infinite;
-    opacity: 0.4;
-    z-index: -1;
-  }
 }
 
 @keyframes subtle-pulse {
@@ -226,13 +233,8 @@ body {
   50% { opacity: 0.9; }
 }
 
-@keyframes status-pulse {
-  0% { transform: scale(1); opacity: 0.4; }
-  100% { transform: scale(3); opacity: 0; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .skeleton, .skeleton-text, .shimmer-bg, .status-dot::after {
+  .skeleton, .skeleton-text {
     animation: none;
   }
 }

@@ -6,6 +6,7 @@ import {
 import FadingTooltip from './FadingTooltip';
 
 import { formatCurrency, formatDuration, formatTps } from '@pi-tps/metrics-core';
+import { PanelHeader } from './ui/Panel';
 
 interface SessionScatterData {
   sessions: Array<{
@@ -32,43 +33,43 @@ function SessionTooltip({ active, payload, hasCost }: { active?: boolean; payloa
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as Record<string, unknown>;
   return (
-    <div className="glass-panel rounded-2xl px-4 py-3 text-sm" style={{ minWidth: 240 }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-400 mb-2">
+    <div className="glass-panel px-4 py-3 text-sm" style={{ minWidth: 240 }}>
+      <p className="ui-kicker mb-2">
         {String(d.fileName || String(d.sessionId).slice(0, 24))}
       </p>
       <div className="space-y-1.5">
         <div className="flex justify-between gap-3 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Requests</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{String(d.totalCalls)}</span>
+          <span className="text-[var(--text-tertiary)]">Requests</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{String(d.totalCalls)}</span>
         </div>
         <div className="flex justify-between gap-3 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Tokens</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{Number(d.totalTokens).toLocaleString()}</span>
+          <span className="text-[var(--text-tertiary)]">Tokens</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{Number(d.totalTokens).toLocaleString()}</span>
         </div>
         <div className="flex justify-between gap-3 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Wtd TPS</span>
+          <span className="text-[var(--text-tertiary)]">Wtd TPS</span>
           <span className="metric-mono font-semibold text-accent">{formatTps(Number(d.weightedTps))}</span>
         </div>
         <div className="flex justify-between gap-3 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Avg TPS</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{formatTps(Number(d.avgTps))}</span>
+          <span className="text-[var(--text-tertiary)]">Avg TPS</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{formatTps(Number(d.avgTps))}</span>
         </div>
         <div className="flex justify-between gap-3 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Avg TTFT</span>
-          <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{formatDuration(Math.round(Number(d.avgTtft)))}</span>
+          <span className="text-[var(--text-tertiary)]">Avg TTFT</span>
+          <span className="metric-mono font-semibold text-[var(--text-primary)]">{formatDuration(Math.round(Number(d.avgTtft)))}</span>
         </div>
         {hasCost && (
           <div className="flex justify-between gap-3 text-xs whitespace-nowrap">
-            <span className="text-zinc-400 dark:text-zinc-400">Cost</span>
-            <span className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{formatCurrency(Number(d.y))}</span>
+            <span className="text-[var(--text-tertiary)]">Cost</span>
+            <span className="metric-mono font-semibold text-[var(--text-primary)]">{formatCurrency(Number(d.y))}</span>
           </div>
         )}
         <div className="flex justify-between gap-3 text-xs whitespace-nowrap">
-          <span className="text-zinc-400 dark:text-zinc-400">Model</span>
-          <span className="text-zinc-600 dark:text-zinc-300 truncate max-w-[10rem]">{String(d.model).split('/').pop()}</span>
+          <span className="text-[var(--text-tertiary)]">Model</span>
+          <span className="text-[var(--text-secondary)] truncate max-w-[10rem]">{String(d.model).split('/').pop()}</span>
         </div>
       </div>
-      <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 pt-1.5 border-t border-zinc-200/50 dark:border-white/[0.06]">Click to focus on this run</p>
+      <p className="text-2xs text-[var(--text-tertiary)] mt-2 pt-1.5 border-t border-[var(--border)]">Click to focus on this run</p>
     </div>
   );
 }
@@ -121,8 +122,7 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
 
   // Color by model — hash model name to one of a set of colors
   const modelColors = [
-    'var(--chart-primary)', 'var(--chart-positive)', 'var(--chart-warning)', 'var(--chart-danger)', 'var(--chart-secondary)',
-    '#db2777', 'var(--accent-light)', '#65a30d', '#ea580c', '#6d28d9',
+    'var(--data-1)', 'var(--data-2)', 'var(--data-3)', 'var(--data-4)', 'var(--data-5)',
   ];
   const modelToColor = new Map<string, string>();
   let colorIdx = 0;
@@ -140,12 +140,10 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-zinc-800 dark:text-zinc-300">Run comparison</h2>
-          <p className="text-sm text-zinc-400 dark:text-zinc-400 mt-0.5">Each dot is one session. Bubble size = request count. Color = model.</p>
-        </div>
-      </div>
+      <PanelHeader
+        title="Run comparison"
+        action={<span className="text-2xs text-[var(--text-tertiary)]">Bubble size = requests</span>}
+      />
 
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
@@ -164,6 +162,7 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
               axisLine={false}
               tickLine={false}
               dy={8}
+              tickFormatter={(value: number) => formatTps(value)}
             />
             <YAxis
               type="number"
@@ -195,11 +194,11 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
       </div>
 
       {/* Model color legend */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-2xs">
         {Array.from(modelToColor.entries()).map(([model, color]) => (
           <div key={model} className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: color }} />
-            <span className="text-zinc-400 dark:text-zinc-400">{model.split('/').pop()}</span>
+            <div className="h-2 w-2 rounded-sm" style={{ background: color }} />
+            <span className="text-[var(--text-tertiary)]">{model.split('/').pop()}</span>
           </div>
         ))}
       </div>

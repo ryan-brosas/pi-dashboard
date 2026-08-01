@@ -1,7 +1,5 @@
-import { memo, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import {
-  ArrowClockwise, Binoculars, CheckCircle, MagnifyingGlass, ShieldCheck, TrendDown,
-} from '@phosphor-icons/react';
+import { memo, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { ArrowClockwise } from '@phosphor-icons/react';
 import {
   Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -16,140 +14,15 @@ import {
   priceUsageDashboard, summarizeSubscriptionUsage, type PricedUsageModelRow,
 } from '../lib/usagePricing';
 
-const WATCH_RANGES: { key: UsageRange; label: string }[] = [
-  { key: '24h', label: '24h' },
-  { key: '7d', label: '7 days' },
-  { key: '30d', label: '30 days' },
-  { key: 'month', label: 'Month' },
-  { key: 'all', label: 'Lifetime' },
-];
-
-const CONTEXT_OPTIONS = [
-  { value: 0, label: 'Any context' },
-  { value: 32_000, label: '32K+' },
-  { value: 128_000, label: '128K+' },
-  { value: 200_000, label: '200K+' },
-  { value: 1_000_000, label: '1M+' },
-];
-const UPTIME_OPTIONS = [
-  { value: 0, label: 'Any uptime' },
-  { value: 99, label: '99%+' },
-  { value: 99.9, label: '99.9%+' },
-];
-const TPS_OPTIONS = [
-  { value: 0, label: 'Any TPS' },
-  { value: 20, label: '20+ TPS' },
-  { value: 50, label: '50+ TPS' },
-  { value: 100, label: '100+ TPS' },
-];
-const LATENCY_OPTIONS = [
-  { value: 0, label: 'Any latency' },
-  { value: 1_000, label: '≤1s' },
-  { value: 3_000, label: '≤3s' },
-  { value: 5_000, label: '≤5s' },
-];
-
-type WatchMode = 'market' | 'payg' | 'subscription';
-type BillingOption = 'all' | 'without-subscription' | 'subscription';
-
-interface SubscriptionPlanPreset {
-  id: string;
-  name: string;
-  monthlyPriceUsd: number;
-  referenceProvider: string;
-  referenceModelIds: string[];
-  overageRateMultiplier?: number;
-  limitNote: string;
-  analysisNote: string;
-  sourceUrl: string | null;
-}
-
-const CLAUDE_REFERENCES = [
-  'anthropic/claude-sonnet-5', 'anthropic/claude-opus-5', 'anthropic/claude-haiku-4.5',
-];
-const CODEX_REFERENCES = [
-  'openai/gpt-5.6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-sol',
-];
-
-const SUBSCRIPTION_PLANS: SubscriptionPlanPreset[] = [
-  {
-    id: 'claude-pro', name: 'Claude Pro', monthlyPriceUsd: 20,
-    referenceProvider: 'anthropic', referenceModelIds: CLAUDE_REFERENCES,
-    limitNote: 'At least 5× Free usage per five-hour session; additional weekly, monthly, model, and feature caps may apply.',
-    analysisNote: 'Affordability is an API-equivalent estimate for the selected Claude model and current token mix, not a measured subscription allowance.',
-    sourceUrl: 'https://www.anthropic.com/pricing',
-  },
-  {
-    id: 'claude-max-5x', name: 'Claude Max 5×', monthlyPriceUsd: 100,
-    referenceProvider: 'anthropic', referenceModelIds: CLAUDE_REFERENCES,
-    limitNote: '5× Pro usage per five-hour session with higher output limits; additional caps may apply.',
-    analysisNote: 'Affordability compares the fee with direct API rates; Max sells a larger access envelope rather than a published token allowance.',
-    sourceUrl: 'https://www.anthropic.com/pricing',
-  },
-  {
-    id: 'makora-starter', name: 'Makora Starter', monthlyPriceUsd: 20,
-    referenceProvider: 'makora', referenceModelIds: ['gemma-4-26b-a4b'],
-    limitNote: 'Sold out. Includes unlimited usage for models under 40B parameters and one concurrent request.',
-    analysisNote: 'Gemma 4 26B is the explicit under-40B reference in the catalog. The affordability estimate applies only while the model remains eligible for the included tier.',
-    sourceUrl: 'https://www.makora.com/pricing',
-  },
-  {
-    id: 'makora-developer', name: 'Makora Developer', monthlyPriceUsd: 200,
-    referenceProvider: 'makora',
-    referenceModelIds: ['deepseek-v4-flash', 'deepseek-v4-pro', 'gemma-4-26b-a4b', 'glm-5.2-fp8', 'glm-5.2-nvfp4', 'kimi-k3'],
-    overageRateMultiplier: 0.9,
-    limitNote: 'Sold out. Includes unlimited models under 40B, 5,000 requests per five-hour period for other models, a 10% PAYG overage discount, and up to six concurrent requests.',
-    analysisNote: 'The base affordability comparator uses full PAYG rates. The request allowance cannot be converted to tokens without an average request shape; discounted overage is reported separately.',
-    sourceUrl: 'https://www.makora.com/pricing',
-  },
-  {
-    id: 'codex-pro', name: 'ChatGPT Pro (Codex)', monthlyPriceUsd: 200,
-    referenceProvider: 'openai', referenceModelIds: CODEX_REFERENCES,
-    limitNote: 'The $200 monthly ChatGPT Pro tier provides maximum Codex tasks. Codex usage still draws from shared five-hour windows and additional weekly limits may apply.',
-    analysisNote: 'This is an API-equivalent estimate against a selected OpenAI API model, not confirmation that the subscription exposes that API model or token volume.',
-    sourceUrl: 'https://developers.openai.com/codex/pricing',
-  },
-  {
-    id: 'custom', name: 'Custom plan', monthlyPriceUsd: 20,
-    referenceProvider: 'anthropic', referenceModelIds: CLAUDE_REFERENCES,
-    limitNote: 'Enter the current fee and verify the plan’s model access, quotas, and rate limits.',
-    analysisNote: 'Custom fees use direct API rates as a reference and do not assert that the plan includes the selected model.',
-    sourceUrl: null,
-  },
-];
-const MARKET_PAGE_SIZE = 100;
-
-function shortModel(id: string): string {
-  return id.split('/').pop() ?? id;
-}
-
-function rate(value: number | null): string {
-  return value === null ? '—' : `$${value.toFixed(value < 1 ? 3 : 2)}`;
-}
-
-function monthlyCurrency(value: number): string {
-  return `$${value.toFixed(2)}`;
-}
-
-function subscriptionRate(value: number): string {
-  if (value >= 1) return `$${value.toFixed(2)}`;
-  const [whole, decimals = ''] = value.toFixed(5).split('.');
-  return `$${whole}.${decimals.replace(/0+$/, '').padEnd(2, '0')}`;
-}
-
-function context(value: number | null): string {
-  return value === null ? '—' : formatNumber(value, 0);
-}
-
-function freshness(generatedAt: string, fetchedAt: number | null): string {
-  const source = new Date(generatedAt);
-  if (Number.isFinite(source.getTime())) return `catalog ${source.toLocaleString()}`;
-  return fetchedAt ? `fetched ${new Date(fetchedAt).toLocaleString()}` : 'catalog time unavailable';
-}
-
-function modelKey(model: PricingModel): string {
-  return `${model.provider}:${model.id}`;
-}
+import {
+  WATCH_RANGES, CONTEXT_OPTIONS, UPTIME_OPTIONS, TPS_OPTIONS, LATENCY_OPTIONS,
+  SUBSCRIPTION_PLANS,
+  type WatchMode, type BillingOption,
+} from './market/constants';
+import {
+  shortModel, monthlyCurrency, subscriptionRate, freshness, modelKey,
+} from './market/format';
+import { MarketTable } from './market/MarketTable';
 
 function MarketWatch({
   dbVersion,
@@ -283,10 +156,10 @@ function MarketWatch({
   );
 
   if (catalogLoading && !catalog) {
-    return <div role="status" className="min-h-[60dvh] grid place-items-center text-sm text-zinc-400">Loading the model market…</div>;
+    return <div role="status" className="min-h-[60dvh] grid place-items-center text-sm text-[var(--text-tertiary)]">Loading the model market…</div>;
   }
   if (catalogError && !catalog) {
-    return <div role="alert" className="m-8 rounded-2xl border border-ember/20 bg-ember/5 p-5 text-sm text-ember">Pricing watcher failed: {catalogError}</div>;
+    return <div role="alert" className="m-8 rounded-md border border-ember/20 bg-ember/5 p-5 text-sm text-ember">Pricing watcher failed: {catalogError}</div>;
   }
   if (!catalog) return null;
 
@@ -329,60 +202,36 @@ function MarketWatch({
   const subscriptionCount = filteredModels.filter((model) => model.subscription).length;
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 px-4 py-5 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-            <Binoculars size={13} weight="bold" /> Independent model market
-          </div>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-            {subscriptionMode
-              ? 'Measure subscription value against PAYG'
-              : paygMode ? 'Choose the best PAYG route for your workload' : 'Search models and provider pricing'}
-          </h2>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[var(--text-secondary)]">
-            {subscriptionMode
-              ? 'See the monthly fee, PAYG-equivalent value, savings, and exact workload needed to break even.'
-              : paygMode
-                ? 'Compare pay-as-you-go routes using actual history or a manual monthly token estimate.'
-                : 'Explore pricing, context limits, privacy options, discounts, and subscriptions without uploading telemetry.'}
-          </p>
+    <div className="page-shell space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="group" aria-label="Market mode" className="flex items-center gap-4">
+          {([
+            { value: 'market', label: 'Market' },
+            { value: 'payg', label: 'PAYG Deals' },
+            { value: 'subscription', label: 'Subscription Value' },
+          ] as const).map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setMode(item.value)}
+              aria-pressed={mode === item.value}
+              className={`text-2xs font-medium transition-colors ${
+                mode === item.value
+                  ? 'text-[var(--text-primary)]'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
-            <button
-              type="button"
-              onClick={() => setMode('market')}
-              aria-pressed={mode === 'market'}
-              className={`rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'market' ? 'bg-[var(--surface-muted)] text-[var(--brand-text)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
-            >
-              Market
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('payg')}
-              aria-pressed={mode === 'payg'}
-              className={`inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'payg' ? 'bg-[var(--surface-muted)] text-[var(--chart-positive)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
-            >
-              <TrendDown size={11} weight="bold" /> PAYG Deals
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('subscription');
-              }}
-              aria-pressed={mode === 'subscription'}
-              className={`rounded px-2.5 py-1.5 text-[11px] font-medium transition-colors ${mode === 'subscription' ? 'bg-violet-500/10 text-violet-500' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
-            >
-              Subscription Value
-            </button>
-          </div>
-          <span className="text-[10px] text-[var(--text-tertiary)]">{freshness(catalog.generatedAt, fetchedAt)}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-2xs text-[var(--text-tertiary)]">{freshness(catalog.generatedAt, fetchedAt)}</span>
           <button
             type="button"
             onClick={refresh}
             disabled={catalogLoading}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-2xs font-medium text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
           >
             <ArrowClockwise size={12} className={catalogLoading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -390,7 +239,7 @@ function MarketWatch({
       </div>
 
       {catalogError && (
-        <div role="alert" className="rounded-xl border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">
+        <div role="alert" className="rounded-md border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">
           Watcher refresh failed. {catalogError} Showing the last valid catalog.
         </div>
       )}
@@ -407,11 +256,11 @@ function MarketWatch({
       )}
 
       {paygMode && workloadMode === 'actual' && usageError && (
-        <div role="alert" className="rounded-xl border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
+        <div role="alert" className="rounded-md border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
       )}
 
       {paygMode && workloadMode === 'actual' && pricedUsage && (pricedUsage.summary.estimatedModelCount > 0 || pricedUsage.summary.unpricedModelCount > 0) && (
-        <div className="rounded-xl border border-accent/15 bg-accent/5 px-4 py-3 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="rounded-md border border-[var(--border)] px-4 py-3 text-2xs text-[var(--text-secondary)]">
           {pricedUsage.summary.estimatedModelCount > 0 && `${pricedUsage.summary.estimatedModelCount} observed route${pricedUsage.summary.estimatedModelCount === 1 ? '' : 's'} use market catalog pricing.`}
           {pricedUsage.summary.unpricedModelCount > 0 && ` ${pricedUsage.summary.unpricedModelCount} route${pricedUsage.summary.unpricedModelCount === 1 ? '' : 's'} remain unpriced.`}
         </div>
@@ -420,17 +269,17 @@ function MarketWatch({
       {paygMode && !paygAvailable && !paygLoading && (
         <div role="status" className="card-surface flex flex-wrap items-center justify-between gap-3 p-5">
           <div>
-            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
               {workloadMode === 'manual' ? 'Enter a monthly token estimate' : 'No usage history found'}
             </p>
-            <p className="mt-1 text-xs text-zinc-400">
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
               {workloadMode === 'manual'
                 ? 'Add at least one token category above to calculate route and subscription value.'
                 : 'Use a manual estimate, connect the collector, or upload telemetry.'}
             </p>
           </div>
           {workloadMode === 'actual' && (
-            <button onClick={() => setWorkloadMode('manual')} className="rounded-lg bg-accent/10 px-3 py-2 text-xs font-medium text-accent">Manual estimate</button>
+            <button onClick={() => setWorkloadMode('manual')} className="rounded-md border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-muted)]">Manual estimate</button>
           )}
         </div>
       )}
@@ -449,8 +298,8 @@ function MarketWatch({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="grid flex-1 grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
               {workloadMode === 'manual'
-                ? <WatchMetric label="Workload" value="Manual monthly" accent />
-                : <WatchMetric label={pricedUsage?.summary.estimatedModelCount ? 'Baseline cost (est.)' : 'Observed cost'} value={formatCurrency(pricedUsage?.summary.totalCostUsd ?? 0)} accent />}
+                ? <WatchMetric label="Workload" value="Manual monthly" />
+                : <WatchMetric label={pricedUsage?.summary.estimatedModelCount ? 'Baseline cost (est.)' : 'Observed cost'} value={formatCurrency(pricedUsage?.summary.totalCostUsd ?? 0)} />}
               <WatchMetric label="Compared tokens" value={formatNumber(totalTokens)} />
               <WatchMetric label="Market routes" value={formatNumber(catalog.models.length, 0)} />
               <WatchMetric label="Providers" value={formatNumber(providers.length, 0)} />
@@ -460,14 +309,14 @@ function MarketWatch({
               <WatchMetric label="Qualifying" value={formatNumber(constrainedComparisons.length, 0)} />
             </div>
             {workloadMode === 'actual' && (
-              <div className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
+              <div className="flex items-center gap-2">
                 {WATCH_RANGES.map((item) => (
                 <button
                   key={item.key}
                   type="button"
                   onClick={() => setRange(item.key)}
                   aria-pressed={range === item.key}
-                  className={`rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${range === item.key ? 'bg-accent/10 text-accent dark:bg-accent/15' : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
+                  className={`px-1.5 py-1 text-2xs font-medium transition-colors ${range === item.key ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                 >
                   {item.label}
                 </button>
@@ -478,21 +327,20 @@ function MarketWatch({
 
           <div className="card-surface flex flex-wrap items-end gap-2 p-3">
             <div className="mr-2 min-w-[150px]">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Deal constraints</p>
-              <p className="mt-1 text-[10px] text-[var(--text-secondary)]">Missing data cannot satisfy an enabled constraint.</p>
-              <p className="mt-1 text-[9px] text-[var(--text-tertiary)]">Performance data: {performanceCovered} of {constrainedComparisons.length} qualifying routes.</p>
+              <p className="ui-title">Deal constraints</p>
+              <p className="mt-1 text-2xs text-[var(--text-tertiary)]">Performance data: {performanceCovered} of {constrainedComparisons.length} qualifying routes.</p>
             </div>
             <DealConstraintSelect ariaLabel="Minimum context" value={minContextLength} setValue={setMinContextLength} options={CONTEXT_OPTIONS} />
             <DealConstraintSelect ariaLabel="Minimum uptime" value={minUptime30m} setValue={setMinUptime30m} options={UPTIME_OPTIONS} />
             <DealConstraintSelect ariaLabel="Minimum TPS" value={minThroughputP50} setValue={setMinThroughputP50} options={TPS_OPTIONS} />
             <DealConstraintSelect ariaLabel="Maximum latency" value={maxLatencyP50} setValue={setMaxLatencyP50} options={LATENCY_OPTIONS} />
-            <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md border border-[var(--border)] px-2.5 text-[10px] text-[var(--text-secondary)]">
+            <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md border border-[var(--border)] px-2.5 text-2xs text-[var(--text-secondary)]">
               <input
                 aria-label="Stable prices only"
                 type="checkbox"
                 checked={stablePricingOnly}
                 onChange={(event) => setStablePricingOnly(event.target.checked)}
-                className="accent-cyan-500"
+                className="accent-[var(--brand)]"
               />
               Stable prices only
             </label>
@@ -527,8 +375,7 @@ function MarketWatch({
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div className="card-surface min-h-[350px] p-5 xl:col-span-2">
-              <p className="text-[10px] uppercase tracking-wider text-zinc-400">Projected cost</p>
-              <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Lowest-cost routes for the selected token mix</h3>
+              <h3 className="ui-title mb-4">Projected cost</h3>
               {active && <ResponsiveContainer width="100%" height={280} initialDimension={{ width: 1, height: 280 }}>
                 <BarChart
                   title="Projected cost by provider route"
@@ -538,25 +385,24 @@ function MarketWatch({
                   margin={{ top: 16, right: 18, left: 12, bottom: 4 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--chart-grid)" />
-                  <XAxis type="number" tickFormatter={(value) => `$${Number(value).toFixed(Number(value) < 1 ? 2 : 0)}`} tick={{ fontSize: 10, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="model" width={145} tick={{ fontSize: 9, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 11 }} formatter={(value) => formatCurrency(Number(value))} />
-                  {observedCostUsd !== null && observedCostUsd > 0 && <ReferenceLine x={observedCostUsd} stroke="var(--chart-warning)" strokeDasharray="4 4" label={{ value: 'baseline', fill: 'var(--chart-warning)', fontSize: 9 }} />}
+                  <XAxis type="number" tickFormatter={(value) => `$${Number(value).toFixed(Number(value) < 1 ? 2 : 0)}`} tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="model" width={145} tick={{ fontSize: 11, fill: 'var(--chart-axis)' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: 'var(--overlay)', border: '1px solid var(--border-strong)', borderRadius: 8, fontSize: 11 }} formatter={(value) => formatCurrency(Number(value))} />
+                  {observedCostUsd !== null && observedCostUsd > 0 && <ReferenceLine x={observedCostUsd} stroke="var(--chart-warning)" strokeDasharray="4 4" label={{ value: 'baseline', fill: 'var(--chart-warning)', fontSize: 11 }} />}
                   <Bar dataKey="cost" name="Projected cost" fill="var(--chart-primary)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>}
             </div>
 
             <div className="card-surface p-5">
-              <p className="text-[10px] uppercase tracking-wider text-zinc-400">{workloadMode === 'manual' ? 'Estimated mix' : 'Observed mix'}</p>
-              <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{workloadMode === 'manual' ? 'Monthly token estimate' : 'Tokens in the selected range'}</h3>
+              <h3 className="ui-title">{workloadMode === 'manual' ? 'Estimated mix' : 'Observed mix'}</h3>
               <div className="mt-5 space-y-4">
-                <MixRow label="Fresh input" value={usageMix?.inputTokens ?? 0} total={totalTokens} color="bg-accent" />
-                <MixRow label="Cache reads" value={usageMix?.cacheReadTokens ?? 0} total={totalTokens} color="bg-moss" />
-                <MixRow label="Cache writes" value={usageMix?.cacheWriteTokens ?? 0} total={totalTokens} color="bg-violet-500" />
-                <MixRow label="Output" value={usageMix?.outputTokens ?? 0} total={totalTokens} color="bg-amber-500" />
+                <MixRow label="Fresh input" value={usageMix?.inputTokens ?? 0} total={totalTokens} color="bg-[var(--chart-primary)]" />
+                <MixRow label="Cache reads" value={usageMix?.cacheReadTokens ?? 0} total={totalTokens} color="bg-[var(--chart-positive)]" />
+                <MixRow label="Cache writes" value={usageMix?.cacheWriteTokens ?? 0} total={totalTokens} color="bg-[var(--chart-secondary)]" />
+                <MixRow label="Output" value={usageMix?.outputTokens ?? 0} total={totalTokens} color="bg-[var(--chart-warning)]" />
               </div>
-              <div className="mt-5 border-t border-zinc-200/50 pt-4 text-[11px] leading-relaxed text-zinc-400 dark:border-white/[0.06]">
+              <div className="mt-5 border-t border-[var(--border)] pt-4 text-2xs leading-relaxed text-[var(--text-tertiary)]">
                 Cache-specific rates are used when available. Otherwise the input rate is the conservative fallback.
               </div>
             </div>
@@ -564,12 +410,16 @@ function MarketWatch({
         </>
       ) : (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-          <WatchMetric label="Market routes" value={formatNumber(filteredModels.length, 0)} accent />
+          <WatchMetric
+            label={filteredModels.length === catalog.models.length ? 'Routes' : 'Matching routes'}
+            value={filteredModels.length === catalog.models.length
+              ? formatNumber(catalog.models.length, 0)
+              : `${formatNumber(filteredModels.length, 0)} / ${formatNumber(catalog.models.length, 0)}`}
+          />
           <WatchMetric label="Providers" value={formatNumber(filteredProviders, 0)} />
           <WatchMetric label="ZDR routes" value={formatNumber(zdrCount, 0)} />
           <WatchMetric label="Discounts" value={formatNumber(discountCount, 0)} />
           <WatchMetric label="Subscriptions" value={formatNumber(subscriptionCount, 0)} />
-          <WatchMetric label="Full catalog" value={formatNumber(catalog.models.length, 0)} />
         </div>
       )}
 
@@ -593,206 +443,9 @@ function MarketWatch({
         />
       )}
 
-      <div className="text-[10px] text-zinc-400">
+      <div className="text-2xs text-[var(--text-tertiary)]">
         Market pricing and provider metadata refresh every Monday, Wednesday, and Friday. Verify official provider pricing before switching.
       </div>
-    </div>
-  );
-}
-
-type PaygRouteSort = 'cost' | 'throughput' | 'latency' | 'uptime';
-
-interface MarketTableProps {
-  models: PricingModel[];
-  comparisons: PaygDealComparison[];
-  observedModels: Set<string>;
-  paygMode: boolean;
-  showSavings: boolean;
-  search: string;
-  setSearch: (value: string) => void;
-  provider: string;
-  setProvider: (value: string) => void;
-  providers: string[];
-  billing: BillingOption;
-  setBilling: (value: BillingOption) => void;
-  zdrOnly: boolean;
-  setZdrOnly: (value: boolean) => void;
-}
-
-export function MarketTable(props: MarketTableProps) {
-  const [page, setPage] = useState(0);
-  const [paygSort, setPaygSort] = useState<PaygRouteSort>('cost');
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const comparisonByModel = useMemo(
-    () => new Map(props.comparisons.map((row) => [modelKey(row.model), row])),
-    [props.comparisons],
-  );
-  const sortedModels = useMemo(() => {
-    if (!props.paygMode || paygSort === 'cost') return props.models;
-    const optional = (a: number | null, b: number | null, ascending: boolean) => {
-      if (a === null) return b === null ? 0 : 1;
-      if (b === null) return -1;
-      return ascending ? a - b : b - a;
-    };
-    return [...props.models].sort((a, b) => {
-      const aDeal = comparisonByModel.get(modelKey(a));
-      const bDeal = comparisonByModel.get(modelKey(b));
-      let result = 0;
-      if (paygSort === 'throughput') {
-        result = optional(
-          aDeal?.performance?.throughput?.p50 ?? null,
-          bDeal?.performance?.throughput?.p50 ?? null,
-          false,
-        );
-      } else if (paygSort === 'latency') {
-        result = optional(
-          aDeal?.performance?.latency?.p50 ?? null,
-          bDeal?.performance?.latency?.p50 ?? null,
-          true,
-        );
-      } else if (paygSort === 'uptime') {
-        result = optional(a.uptime30m, b.uptime30m, false);
-      }
-      return result || (aDeal?.totalCostUsd ?? Infinity) - (bDeal?.totalCostUsd ?? Infinity)
-        || modelKey(a).localeCompare(modelKey(b));
-    });
-  }, [comparisonByModel, paygSort, props.models, props.paygMode]);
-  const lastPage = Math.max(0, Math.ceil(sortedModels.length / MARKET_PAGE_SIZE) - 1);
-  const currentPage = Math.min(page, lastPage);
-  const pageStart = currentPage * MARKET_PAGE_SIZE;
-  const pageEnd = Math.min(pageStart + MARKET_PAGE_SIZE, sortedModels.length);
-  const changePage = (nextPage: number) => {
-    setPage(nextPage);
-    scrollRef.current?.scrollTo?.({ top: 0 });
-  };
-  const resetPage = () => changePage(0);
-  return (
-    <div className="card-surface overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <div className="relative min-w-[220px] flex-1 max-w-md">
-          <MagnifyingGlass size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <input
-            value={props.search}
-            onChange={(event) => {
-              resetPage();
-              props.setSearch(event.target.value);
-            }}
-            placeholder="Search models, providers, organizations, or subscriptions"
-            aria-label="Search model market"
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] py-2 pl-8 pr-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
-          />
-        </div>
-        <select
-          value={props.provider}
-          onChange={(event) => {
-            resetPage();
-            props.setProvider(event.target.value);
-          }}
-          aria-label="Provider"
-          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
-        >
-          <option value="all">All providers</option>
-          {props.providers.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
-        <select
-          value={props.billing}
-          onChange={(event) => {
-            resetPage();
-            props.setBilling(event.target.value as BillingOption);
-          }}
-          aria-label="Billing option"
-          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
-        >
-          <option value="all">All billing options</option>
-          <option value="subscription">Subscription offered</option>
-          <option value="without-subscription">No subscription listed</option>
-        </select>
-        {props.paygMode && (
-          <select
-            value={paygSort}
-            onChange={(event) => {
-              resetPage();
-              setPaygSort(event.target.value as PaygRouteSort);
-            }}
-            aria-label="Sort PAYG routes"
-            className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
-          >
-            <option value="cost">Lowest projected cost</option>
-            <option value="throughput">Highest market TPS</option>
-            <option value="latency">Lowest market latency</option>
-            <option value="uptime">Highest uptime</option>
-          </select>
-        )}
-        <label className="flex cursor-pointer items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-secondary)]">
-          <input type="checkbox" checked={props.zdrOnly} onChange={(event) => {
-            resetPage();
-            props.setZdrOnly(event.target.checked);
-          }} className="accent-cyan-500" />
-          <ShieldCheck size={13} /> ZDR only
-        </label>
-      </div>
-
-      <div ref={scrollRef} className="max-h-[60dvh] overflow-auto">
-        <table className={`w-full text-[11px] ${props.paygMode ? 'min-w-[1280px]' : 'min-w-[850px]'}`}>
-          <thead className="sticky top-0 z-10 bg-[var(--surface-raised)]">
-            <tr className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">
-              <th className="px-5 py-2.5 text-left">Model</th>
-              <th className="px-3 py-2.5 text-left">Provider</th>
-              <th className="px-3 py-2.5 text-right">Input $/M</th>
-              <th className="px-3 py-2.5 text-right">Cache $/M</th>
-              <th className="px-3 py-2.5 text-right">Output $/M</th>
-              <th className="px-3 py-2.5 text-right">Context</th>
-              <th className="px-3 py-2.5 text-right">Uptime</th>
-              {props.paygMode && <th className="px-3 py-2.5 text-right">Market TPS</th>}
-              {props.paygMode && <th className="px-3 py-2.5 text-right">Latency</th>}
-              {props.paygMode && <th className="px-3 py-2.5 text-right">Blended $/M</th>}
-              {props.paygMode && <th className="px-3 py-2.5 text-right">Projected</th>}
-              {props.showSavings && <th className="px-5 py-2.5 text-right">Savings</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedModels.slice(pageStart, pageEnd).map((model) => (
-              <MarketRow
-                key={modelKey(model)}
-                model={model}
-                comparison={comparisonByModel.get(modelKey(model))}
-                observed={props.observedModels.has(modelKey(model))}
-                showSavings={props.showSavings}
-              />
-            ))}
-          </tbody>
-        </table>
-        {sortedModels.length === 0 && <div className="py-12 text-center text-xs text-[var(--text-tertiary)]">No catalog routes match these filters.</div>}
-      </div>
-      {sortedModels.length > 0 && (
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-4 py-2.5 text-[11px] text-[var(--text-tertiary)]">
-          <span aria-live="polite">
-            {sortedModels.length <= MARKET_PAGE_SIZE
-              ? `Showing all ${sortedModels.length.toLocaleString()} routes`
-              : `Showing ${(pageStart + 1).toLocaleString()}–${pageEnd.toLocaleString()} of ${sortedModels.length.toLocaleString()} routes`}
-          </span>
-          <div className="flex items-center gap-1">
-            {currentPage > 0 && (
-              <button
-                type="button"
-                onClick={() => changePage(currentPage - 1)}
-                className="h-7 rounded-md px-2.5 font-medium text-accent transition-colors hover:bg-accent/5"
-              >
-                Previous
-              </button>
-            )}
-            {pageEnd < sortedModels.length && (
-              <button
-                type="button"
-                onClick={() => changePage(currentPage + 1)}
-                className="h-7 rounded-md px-2.5 font-medium text-accent transition-colors hover:bg-accent/5"
-              >
-                Next {Math.min(MARKET_PAGE_SIZE, sortedModels.length - pageEnd).toLocaleString()}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -864,14 +517,13 @@ function SubscriptionValuePanel({
       <div className="card-surface p-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-500">Subscription value</p>
-            <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">How many tokens make the monthly fee worthwhile?</h3>
-            <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+            <p className="ui-title">Subscription value</p>
+            <p className="mt-2 text-2xs leading-relaxed text-[var(--text-secondary)]">
               Enter the plan fee as the budget and see how many tokens it buys at direct API rates. Fresh input, cached input, and output are priced separately using your Pi history mix when available.
             </p>
           </div>
           <div className="grid min-w-[280px] flex-1 gap-2 sm:grid-cols-2 xl:max-w-5xl xl:grid-cols-6">
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Plan preset</span>
               <select
                 aria-label="Subscription plan"
@@ -884,12 +536,12 @@ function SubscriptionValuePanel({
                   setReferenceId('');
                   setAmbiguousUsageConfirmed(false);
                 }}
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
               >
                 {SUBSCRIPTION_PLANS.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
               </select>
             </label>
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Monthly fee in USD</span>
               <input
                 aria-label="Monthly subscription price"
@@ -898,16 +550,16 @@ function SubscriptionValuePanel({
                 step="1"
                 value={monthlyPriceUsd}
                 onChange={(event) => setMonthlyPriceUsd(Number(event.target.value))}
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
               />
             </label>
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Reference API model</span>
               <select
                 aria-label="Subscription reference model"
                 value={reference?.id ?? ''}
                 onChange={(event) => setReferenceId(event.target.value)}
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
               >
                 {referenceModels.map((model) => <option key={model.id} value={model.id}>{shortModel(model.id)}</option>)}
               </select>
@@ -916,7 +568,7 @@ function SubscriptionValuePanel({
               ['fresh', 'Fresh input share'],
               ['cached', 'Cache-read share'],
             ] as const).map(([key, label]) => (
-              <label key={key} className="text-[9px] text-[var(--text-tertiary)]">
+              <label key={key} className="text-2xs text-[var(--text-tertiary)]">
                 <span className="mb-1 block">{label} %</span>
                 <input
                   aria-label={label}
@@ -929,23 +581,23 @@ function SubscriptionValuePanel({
                     const next = Number(event.target.value);
                     setMixOverride({ ...mix, [key]: Number.isFinite(next) ? Math.min(100, Math.max(0, next)) : 0 });
                   }}
-                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
             ))}
-            <label className="text-[9px] text-[var(--text-tertiary)]">
+            <label className="text-2xs text-[var(--text-tertiary)]">
               <span className="mb-1 block">Output token share %</span>
               <input
                 aria-label="Output token share"
                 type="number"
                 value={Number(outputSharePercent.toFixed(2))}
                 readOnly
-                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 text-[11px] text-[var(--text-secondary)]"
+                className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 text-2xs text-[var(--text-secondary)]"
               />
             </label>
           </div>
           {plan.referenceProvider === 'makora' && (
-            <label className="mt-3 flex items-start gap-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+            <label className="mt-3 flex items-start gap-2 text-2xs leading-relaxed text-[var(--text-secondary)]">
               <input
                 aria-label="Treat Makora API history as subscription usage"
                 type="checkbox"
@@ -962,23 +614,23 @@ function SubscriptionValuePanel({
       {reference && value ? (
         <>
           <div className="card-surface p-4">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Realized this month</p>
+            <p className="ui-kicker">Realized this month</p>
             {realizedUsage.matchedModels > 0 ? (
               <>
                 <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-                  <WatchMetric label="API-equivalent value" value={monthlyCurrency(realizedUsage.apiEquivalentUsd)} accent />
+                  <WatchMetric label="API-equivalent value" value={monthlyCurrency(realizedUsage.apiEquivalentUsd)} />
                   <WatchMetric label="Subscription fee" value={monthlyCurrency(monthlyPriceUsd)} />
                   <WatchMetric label="Realized multiple" value={`${(realizedUsage.apiEquivalentUsd / monthlyPriceUsd).toFixed(2)}× realized`} />
                   <WatchMetric label="Net value" value={monthlyCurrency(realizedUsage.apiEquivalentUsd - monthlyPriceUsd)} />
                   <WatchMetric label="Observed tokens" value={formatNumber(realizedUsage.totalTokens)} />
                   <WatchMetric label="Observed calls" value={formatNumber(realizedUsage.calls, 0)} />
                 </div>
-                <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                <p className="mt-2 text-2xs leading-relaxed text-[var(--text-tertiary)]">
                   Detected {realizedUsage.matchedModels} matching model route{realizedUsage.matchedModels === 1 ? '' : 's'} in local Pi history; {realizedUsage.pricedModels} had a current API price and {realizedUsage.unpricedModels} were excluded from value. Cache-write cost is included when published; a missing cache-write rate contributes $0, matching TokenWatch. Cache writes are excluded from the percentage mix and forward capacity estimate.
                 </p>
               </>
             ) : (
-              <p className="mt-2 text-[10px] text-[var(--text-tertiary)]">No matching subscription usage detected in local Pi history this month. The capacity estimate below still works from the plan budget.</p>
+              <p className="mt-2 text-2xs text-[var(--text-tertiary)]">No matching subscription usage detected in local Pi history this month. The capacity estimate below still works from the plan budget.</p>
             )}
           </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
@@ -986,18 +638,18 @@ function SubscriptionValuePanel({
             <WatchMetric label="API input / M" value={subscriptionRate(inputRateUsdPerM)} />
             <WatchMetric label="API cache / M" value={subscriptionRate(cacheReadRateUsdPerM)} />
             <WatchMetric label="API output / M" value={subscriptionRate(outputRateUsdPerM)} />
-            <WatchMetric label="Blended / M" value={subscriptionRate(value.blendedRateUsdPerM)} accent />
+            <WatchMetric label="Blended / M" value={subscriptionRate(value.blendedRateUsdPerM)} />
             <WatchMetric label="Affordable total" value={formatNumber(value.breakEvenTokens)} />
             <WatchMetric label="Mix source" value={mixSource} />
           </div>
-          <div className="card-surface border-l-2 border-l-violet-500 p-4">
+          <div className="card-surface p-4">
             <p className="text-sm font-semibold text-[var(--text-primary)]">
               Break even at {formatNumber(value.breakEvenTokens)} monthly tokens.
             </p>
-            <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
+            <p className="mt-1 text-2xs text-[var(--text-secondary)]">
               {formatNumber(value.breakEvenInputTokens)} fresh + {formatNumber(value.breakEvenCacheReadTokens)} cached + {formatNumber(value.breakEvenOutputTokens)} output at {subscriptionRate(inputRateUsdPerM)} input, {subscriptionRate(cacheReadRateUsdPerM)} cache, and {subscriptionRate(outputRateUsdPerM)} output per million.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-[var(--text-tertiary)]">
+            <div className="mt-3 flex flex-wrap gap-2 text-2xs text-[var(--text-tertiary)]">
               <span>{formatNumber(value.breakEvenInputTokens)} fresh</span>
               <span>·</span>
               <span>{formatNumber(value.breakEvenCacheReadTokens)} cached</span>
@@ -1006,30 +658,30 @@ function SubscriptionValuePanel({
               <span>·</span>
               <span>{subscriptionRate(value.blendedRateUsdPerM)} blended / M</span>
             </div>
-            <p className="mt-3 text-[10px] leading-relaxed text-[var(--text-secondary)]">{plan.analysisNote}</p>
-            <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
+            <p className="mt-3 text-2xs leading-relaxed text-[var(--text-secondary)]">{plan.analysisNote}</p>
+            <p className="mt-2 text-2xs leading-relaxed text-[var(--text-tertiary)]">{plan.limitNote}</p>
             {plan.overageRateMultiplier && (
-              <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+              <p className="mt-1 text-2xs leading-relaxed text-[var(--text-tertiary)]">
                 Discounted overage: {subscriptionRate(inputRateUsdPerM * plan.overageRateMultiplier)} input, {subscriptionRate(cacheReadRateUsdPerM * plan.overageRateMultiplier)} cache, and {subscriptionRate(outputRateUsdPerM * plan.overageRateMultiplier)} output per million. This discount is not applied to the base affordability comparator.
               </p>
             )}
-            <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
+            <p className="mt-1 text-2xs leading-relaxed text-amber-600">
               Usage caps are not expressed as token allowances in the market catalog. Break-even shows API-equivalent value, not a guarantee that the subscription permits this volume.
             </p>
-            {plan.sourceUrl && <a className="mt-2 inline-block text-[10px] font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">Verify current plan terms</a>}
+            {plan.sourceUrl && <a className="mt-2 inline-block text-2xs font-medium text-accent hover:underline" href={plan.sourceUrl} target="_blank" rel="noreferrer">Verify current plan terms</a>}
           </div>
           <div className="card-surface p-4">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Other researched subscriptions</p>
+            <p className="ui-kicker">Other researched subscriptions</p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-[var(--text-primary)]">GitHub Copilot</p>
-                <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">Paid plans keep code completions unlimited and meter chat, agents, CLI, Spaces, and Spark with GitHub AI Credits at $0.01 each. Copilot Max includes $100 in monthly credits.</p>
-                <a className="mt-1 inline-block text-[10px] text-accent hover:underline" href="https://github.com/features/copilot/plans" target="_blank" rel="noreferrer">Official Copilot plans</a>
+                <p className="mt-1 text-2xs leading-relaxed text-[var(--text-secondary)]">Paid plans keep code completions unlimited and meter chat, agents, CLI, Spaces, and Spark with GitHub AI Credits at $0.01 each. Copilot Max includes $100 in monthly credits.</p>
+                <a className="mt-1 inline-block text-2xs text-accent hover:underline" href="https://github.com/features/copilot/plans" target="_blank" rel="noreferrer">Official Copilot plans</a>
               </div>
               <div>
                 <p className="text-xs font-semibold text-[var(--text-primary)]">Google AI</p>
-                <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">Pro and Ultra describe Antigravity, AI Studio, and Jules with relative limits rather than token quotas. Their developer benefits include monthly cloud credits, so they are not forced into token break-even without a comparable allowance.</p>
-                <a className="mt-1 inline-block text-[10px] text-accent hover:underline" href="https://one.google.com/about/google-ai-plans/" target="_blank" rel="noreferrer">Official Google AI plans</a>
+                <p className="mt-1 text-2xs leading-relaxed text-[var(--text-secondary)]">Pro and Ultra describe Antigravity, AI Studio, and Jules with relative limits rather than token quotas. Their developer benefits include monthly cloud credits, so they are not forced into token break-even without a comparable allowance.</p>
+                <a className="mt-1 inline-block text-2xs text-accent hover:underline" href="https://one.google.com/about/google-ai-plans/" target="_blank" rel="noreferrer">Official Google AI plans</a>
               </div>
             </div>
           </div>
@@ -1062,16 +714,13 @@ function WorkloadControls({
   return (
     <div className="card-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">Workload</p>
-          <p className="mt-1 text-[10px] text-[var(--text-secondary)]">Use local history or estimate a monthly token mix. Manual values stay in this browser tab.</p>
-        </div>
-        <div className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
+        <p className="ui-title">Workload</p>
+        <div role="group" aria-label="Workload source" className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setMode('actual')}
             aria-pressed={mode === 'actual'}
-            className={`rounded px-2.5 py-1.5 text-[10px] font-medium ${mode === 'actual' ? 'bg-[var(--surface-muted)] text-[var(--brand-text)]' : 'text-[var(--text-tertiary)]'}`}
+            className={`text-2xs font-medium transition-colors ${mode === 'actual' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
           >
             Actual usage{actualLoading ? ' · loading' : actualAvailable ? '' : ' · unavailable'}
           </button>
@@ -1079,7 +728,7 @@ function WorkloadControls({
             type="button"
             onClick={() => setMode('manual')}
             aria-pressed={mode === 'manual'}
-            className={`rounded px-2.5 py-1.5 text-[10px] font-medium ${mode === 'manual' ? 'bg-[var(--surface-muted)] text-[var(--chart-positive)]' : 'text-[var(--text-tertiary)]'}`}
+            className={`text-2xs font-medium transition-colors ${mode === 'manual' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
           >
             Manual estimate
           </button>
@@ -1087,10 +736,10 @@ function WorkloadControls({
       </div>
       {mode === 'manual' && (
         <div className="mt-3">
-          <p className="mb-2 text-[10px] font-medium text-[var(--text-primary)]">Manual monthly estimate</p>
+          <p className="mb-2 text-2xs font-medium text-[var(--text-primary)]">Manual monthly estimate</p>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {fields.map((field) => (
-              <label key={field.key} className="text-[9px] text-[var(--text-tertiary)]">
+              <label key={field.key} className="text-2xs text-[var(--text-tertiary)]">
                 <span className="mb-1 block">{field.label.replace('Monthly ', '')}</span>
                 <input
                   aria-label={field.label}
@@ -1104,7 +753,7 @@ function WorkloadControls({
                       ...current, [field.key]: Number.isFinite(value) && value > 0 ? value : 0,
                     }));
                   }}
-                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                  className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
                 />
               </label>
             ))}
@@ -1128,7 +777,7 @@ function DealConstraintSelect({
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => setValue(Number(event.target.value))}
-      className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[10px] text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
+      className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-2xs text-[var(--text-secondary)] outline-none focus:border-[var(--brand)]"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>{option.label}</option>
@@ -1146,20 +795,20 @@ function DealCard({
 }) {
   return (
     <div className="card-surface p-4">
-      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">{label}</p>
+      <p className="ui-kicker">{label}</p>
       {deal ? (
         <>
           <div className="mt-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{deal.model.providerDisplay}</p>
-              <p className="truncate text-[10px] text-[var(--text-tertiary)]">{shortModel(deal.model.id)}</p>
+              <p className="truncate text-2xs text-[var(--text-tertiary)]">{shortModel(deal.model.id)}</p>
             </div>
-            <p className="metric-mono text-base font-semibold text-[var(--chart-positive)]">
+            <p className="metric-mono text-base font-semibold text-[var(--text-primary)]">
               {formatCurrency(deal.totalCostUsd)}
             </p>
           </div>
-          <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">{reason}</p>
-          <div className="mt-3 flex flex-wrap gap-1.5 text-[9px] text-[var(--text-tertiary)]">
+          <p className="mt-2 text-2xs leading-relaxed text-[var(--text-secondary)]">{reason}</p>
+          <div className="mt-3 flex flex-wrap gap-1.5 text-2xs text-[var(--text-tertiary)]">
             <span>{deal.model.uptime30m === null ? 'uptime unknown' : `${deal.model.uptime30m.toFixed(1)}% uptime`}</span>
             <span>·</span>
             <span>{deal.performance?.throughput?.p50 === null || deal.performance?.throughput?.p50 === undefined
@@ -1179,11 +828,11 @@ function DealCard({
   );
 }
 
-function WatchMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+function WatchMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card-surface px-3 py-2.5">
-      <p className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">{label}</p>
-      <p className={`metric-mono mt-0.5 text-base font-semibold ${accent ? 'text-[var(--brand-text)]' : 'text-[var(--text-primary)]'}`}>{value}</p>
+    <div className="min-w-0 border-l border-[var(--border)] px-3 py-1 first:border-l-0 first:pl-0">
+      <p className="ui-kicker">{label}</p>
+      <p className="metric-mono mt-1 text-base font-semibold text-[var(--text-primary)]">{value}</p>
     </div>
   );
 }
@@ -1192,64 +841,14 @@ function MixRow({ label, value, total, color }: { label: string; value: number; 
   const percentage = total > 0 ? (value / total) * 100 : 0;
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between text-[11px]">
-        <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
-        <span className="metric-mono text-zinc-700 dark:text-zinc-300">{formatNumber(value)} · {percentage.toFixed(1)}%</span>
+      <div className="mb-1.5 flex items-center justify-between text-2xs">
+        <span className="text-[var(--text-secondary)]">{label}</span>
+        <span className="metric-mono text-[var(--text-primary)]">{formatNumber(value)} · {percentage.toFixed(1)}%</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/[0.05]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-inset)] dark:bg-white/[0.05]">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, percentage)}%` }} />
       </div>
     </div>
-  );
-}
-
-function MarketRow({
-  model,
-  comparison,
-  observed,
-  showSavings,
-}: {
-  model: PricingModel;
-  comparison?: PaygDealComparison;
-  observed: boolean;
-  showSavings: boolean;
-}) {
-  const savingsPositive = comparison?.savingsUsd !== null && (comparison?.savingsUsd ?? 0) > 0;
-  return (
-    <tr className="border-t border-[var(--border)] hover:bg-[var(--surface-muted)]">
-      <td className="max-w-[300px] px-4 py-2">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate font-medium text-[var(--text-primary)]" title={model.id}>{shortModel(model.id)}</span>
-          {observed && <span className="inline-flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-accent"><CheckCircle size={9} weight="fill" /> used</span>}
-          {model.zdr && <span className="rounded bg-moss/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-moss">ZDR</span>}
-          {model.subscription && <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-violet-500">Sub</span>}
-          {model.discount > 0 && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-amber-600">−{Math.round(model.discount * 100)}%</span>}
-        </div>
-        <span className="block truncate text-[9px] text-[var(--text-tertiary)]">{model.org}</span>
-      </td>
-      <td className="px-3 py-2 text-[var(--text-secondary)]">{model.providerDisplay}</td>
-      <td className="metric-mono px-3 py-2.5 text-right">{rate(model.pricing.input)}</td>
-      <td className="metric-mono px-3 py-2.5 text-right">{rate(model.pricing.cacheRead)}</td>
-      <td className="metric-mono px-3 py-2.5 text-right">{rate(model.pricing.output)}</td>
-      <td className="metric-mono px-3 py-2.5 text-right">{context(model.contextLength)}</td>
-      <td className="metric-mono px-3 py-2.5 text-right">{model.uptime30m === null ? '—' : `${model.uptime30m.toFixed(1)}%`}</td>
-      {comparison && <td className="metric-mono px-3 py-2.5 text-right">
-        {comparison.performance?.throughput?.p50 === null || comparison.performance?.throughput?.p50 === undefined
-          ? '—' : formatNumber(comparison.performance.throughput.p50, 1)}
-      </td>}
-      {comparison && <td className="metric-mono px-3 py-2.5 text-right">
-        {comparison.performance?.latency?.p50 === null || comparison.performance?.latency?.p50 === undefined
-          ? '—' : `${formatNumber(comparison.performance.latency.p50, 0)}ms`}
-      </td>}
-      {comparison && <td className="metric-mono px-3 py-2.5 text-right">{rate(comparison.blendedRateUsdPerM)}</td>}
-      {comparison && <td className="metric-mono px-3 py-2.5 text-right font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(comparison.totalCostUsd)}</td>}
-      {comparison && showSavings && (
-        <td className={`metric-mono px-5 py-2.5 text-right font-medium ${savingsPositive ? 'text-moss' : 'text-zinc-400'}`}>
-          {comparison.savingsUsd === null ? '—' : `${savingsPositive ? '−' : '+'}${formatCurrency(Math.abs(comparison.savingsUsd))}`}
-          {comparison.savingsPct !== null && <span className="ml-1 text-[9px] opacity-70">({Math.abs(comparison.savingsPct).toFixed(1)}%)</span>}
-        </td>
-      )}
-    </tr>
   );
 }
 

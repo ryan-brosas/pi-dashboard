@@ -8,6 +8,7 @@ import FadingTooltip from './FadingTooltip';
 
 import type { TimingBucketRow } from '../lib/queries';
 import { formatUsdPerM } from '@pi-tps/metrics-core';
+import { PanelHeader, SegmentedControl } from './ui/Panel';
 
 interface Props {
   buckets: TimingBucketRow[];
@@ -87,37 +88,37 @@ function CustomTooltip({ active, payload, metric, sessionRate }: { active?: bool
   const multStr = showMultRange ? `${multLo.toFixed(2)}× – ${multHi.toFixed(2)}×` : `${costMultiplier.toFixed(2)}×`;
 
   return (
-    <div className="glass-panel rounded-2xl px-4 py-3 text-sm" style={{ minWidth: 240 }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-400 mb-1">{String(data.label)}</p>
+    <div className="glass-panel px-4 py-3 text-sm" style={{ minWidth: 240 }}>
+      <p className="ui-kicker mb-1">{String(data.label)}</p>
       <div className="flex items-baseline gap-2">
-        <span className="metric-mono text-lg font-bold text-zinc-800 dark:text-zinc-300" style={{ color: isCostMode ? config.color : undefined }}>
+        <span className="metric-mono text-lg font-bold text-[var(--text-primary)]" style={{ color: isCostMode ? config.color : undefined }}>
           {isCostMode ? formatUsdPerM(rate) : String(data[metric])}
         </span>
-        <span className="text-xs text-zinc-400 dark:text-zinc-400">{config.unit} {isTpsMode ? '· Active TPS' : ''}{isCostMode ? '· Blended' : ''}</span>
+        <span className="text-xs text-[var(--text-tertiary)]">{config.unit} {isTpsMode ? '· Active TPS' : ''}{isCostMode ? '· Blended' : ''}</span>
       </div>
       {hasRange && (
-        <div className="flex items-center justify-between text-[11px] mt-1">
-          <span className="text-zinc-400 dark:text-zinc-400">Range</span>
-          <span className="metric-mono text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center justify-between text-2xs mt-1">
+          <span className="text-[var(--text-tertiary)]">Range</span>
+          <span className="metric-mono text-[var(--text-secondary)]">
             {fmtRange(trough!)} – {fmtRange(peak!)}
           </span>
         </div>
       )}
       {isTpsMode && (
         <div className="mt-2 space-y-1">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400 dark:text-zinc-400">Active</span>
+          <div className="flex items-center justify-between text-2xs">
+            <span className="text-[var(--text-tertiary)]">Active</span>
             <span className="metric-mono font-semibold text-moss">{String(data.avgTps)} tok/s</span>
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400 dark:text-zinc-400">Wall</span>
-            <span className="metric-mono font-semibold text-zinc-500 dark:text-zinc-400">{String(data.tpsWall)} tok/s</span>
+          <div className="flex items-center justify-between text-2xs">
+            <span className="text-[var(--text-tertiary)]">Wall</span>
+            <span className="metric-mono font-semibold text-[var(--text-secondary)]">{String(data.tpsWall)} tok/s</span>
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400 dark:text-zinc-400">Loss</span>
-            <span className={`metric-mono font-semibold ${(data.tpsLoss as number) > 50 ? 'text-ember' : (data.tpsLoss as number) > 20 ? 'text-amber' : 'text-zinc-500 dark:text-zinc-400'}`}>{(data.tpsLoss as number).toFixed(1)}%</span>
+          <div className="flex items-center justify-between text-2xs">
+            <span className="text-[var(--text-tertiary)]">Loss</span>
+            <span className={`metric-mono font-semibold ${(data.tpsLoss as number) > 50 ? 'text-ember' : (data.tpsLoss as number) > 20 ? 'text-amber' : 'text-[var(--text-secondary)]'}`}>{(data.tpsLoss as number).toFixed(1)}%</span>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden flex bg-zinc-100 dark:bg-white/[0.06]">
+          <div className="h-1.5 rounded-full overflow-hidden flex bg-[var(--surface-inset)]">
             <div className="h-full bg-moss" style={{ width: `${Math.max(0, Math.min(100, wallShare))}%` }} />
             <div className="h-full bg-ember" style={{ width: `${Math.max(0, Math.min(100, 100 - wallShare))}%` }} />
           </div>
@@ -125,44 +126,44 @@ function CustomTooltip({ active, payload, metric, sessionRate }: { active?: bool
       )}
       {isCostMode && (
         <div className="mt-2 space-y-1">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400 dark:text-zinc-400">Bucket</span>
+          <div className="flex items-center justify-between text-2xs">
+            <span className="text-[var(--text-tertiary)]">Bucket</span>
             <span className="metric-mono font-semibold" style={{ color: config.color }}>{formatUsdPerM(bucketRate)}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400 dark:text-zinc-400">Session</span>
-            <span className="metric-mono font-semibold text-zinc-500 dark:text-zinc-400">{formatUsdPerM(sessionRate)}</span>
+          <div className="flex items-center justify-between text-2xs">
+            <span className="text-[var(--text-tertiary)]">Session</span>
+            <span className="metric-mono font-semibold text-[var(--text-secondary)]">{formatUsdPerM(sessionRate)}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400 dark:text-zinc-400">Loss</span>
-            <span className={`metric-mono font-semibold ${costLoss > 50 ? 'text-ember' : costLoss > 20 ? 'text-amber' : 'text-zinc-500 dark:text-zinc-400'}`}>{lossStr}</span>
+          <div className="flex items-center justify-between text-2xs">
+            <span className="text-[var(--text-tertiary)]">Loss</span>
+            <span className={`metric-mono font-semibold ${costLoss > 50 ? 'text-ember' : costLoss > 20 ? 'text-amber' : 'text-[var(--text-secondary)]'}`}>{lossStr}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400 dark:text-zinc-400">Cost ×</span>
-            <span className={`metric-mono font-semibold ${costMultiplier > 1.5 ? 'text-ember' : costMultiplier > 1.2 ? 'text-amber' : 'text-zinc-500 dark:text-zinc-400'}`}>{multStr}</span>
+          <div className="flex items-center justify-between text-2xs">
+            <span className="text-[var(--text-tertiary)]">Cost ×</span>
+            <span className={`metric-mono font-semibold ${costMultiplier > 1.5 ? 'text-ember' : costMultiplier > 1.2 ? 'text-amber' : 'text-[var(--text-secondary)]'}`}>{multStr}</span>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden flex bg-zinc-100 dark:bg-white/[0.06]">
+          <div className="h-1.5 rounded-full overflow-hidden flex bg-[var(--surface-inset)]">
             <div className="h-full" style={{ width: `${Math.max(0, Math.min(100, costRetained))}%`, backgroundColor: config.color }} />
             <div className="h-full bg-ember" style={{ width: `${Math.max(0, Math.min(100, 100 - costRetained))}%` }} />
           </div>
           {bucketRate == null && (
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500">No cost data in this bucket.</p>
+            <p className="text-2xs text-[var(--text-tertiary)]">No cost data in this bucket.</p>
           )}
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 pt-1">Hold on a bucket to decompose cost ×</p>
+          <p className="text-2xs text-[var(--text-tertiary)] pt-1">Hold on a bucket to decompose cost ×</p>
         </div>
       )}
-      <div className={`pt-1.5 border-t border-zinc-200/50 dark:border-white/[0.06] grid grid-cols-3 gap-3 text-[11px] mt-1.5`}>
+      <div className={`pt-1.5 border-t border-[var(--border)] grid grid-cols-3 gap-3 text-2xs mt-1.5`}>
         <div>
-          <span className="text-zinc-400 dark:text-zinc-400">Calls</span>
-          <p className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{String(data.count)}</p>
+          <span className="text-[var(--text-tertiary)]">Calls</span>
+          <p className="metric-mono font-semibold text-[var(--text-primary)]">{String(data.count)}</p>
         </div>
         <div>
-          <span className="text-zinc-400 dark:text-zinc-400">Tokens</span>
-          <p className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{((data.totalTokens as number) / 1000).toFixed(1)}k</p>
+          <span className="text-[var(--text-tertiary)]">Tokens</span>
+          <p className="metric-mono font-semibold text-[var(--text-primary)]">{((data.totalTokens as number) / 1000).toFixed(1)}k</p>
         </div>
         <div>
-          <span className="text-zinc-400 dark:text-zinc-400">Avg TPS</span>
-          <p className="metric-mono font-semibold text-zinc-700 dark:text-zinc-300">{String(data.avgTps)}</p>
+          <span className="text-[var(--text-tertiary)]">Avg TPS</span>
+          <p className="metric-mono font-semibold text-[var(--text-primary)]">{String(data.avgTps)}</p>
         </div>
       </div>
     </div>
@@ -181,7 +182,7 @@ function MultiplierBar({ value, color, range }: { value: number; color: string; 
   const pct = (v: number) => (clamp(v) / 2) * 100;
   const pointPct = pct(value);
   return (
-    <div className="relative h-1.5 rounded-full bg-zinc-100 dark:bg-white/[0.06] overflow-hidden">
+    <div className="relative h-1.5 rounded-full bg-[var(--surface-inset)] overflow-hidden">
       {/* trough→peak span: only relevant in range mode */}
       {range && (() => {
         const lo = pct(range[0]);
@@ -201,7 +202,7 @@ function MultiplierBar({ value, color, range }: { value: number; color: string; 
           : { width: `${pointPct}%`, backgroundColor: color, opacity: 0.85 }}
       />
       {/* 1.0× center tick */}
-      <div className="absolute inset-y-0 left-1/2 w-px bg-zinc-400/50 dark:bg-zinc-500/60" />
+      <div className="absolute inset-y-0 left-1/2 w-px bg-[var(--border-strong)]" />
     </div>
   );
 }
@@ -244,26 +245,26 @@ function CostDecompositionPanel({
 
   return (
     <div
-      className="glass-panel rounded-2xl text-sm overflow-hidden"
+      className="glass-panel text-sm overflow-hidden"
       style={{ minWidth: 224, maxWidth: 248 }}
     >
       <div className="px-3 py-2.5">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-400">
+        <p className="mb-2 ui-kicker">
           {bucket.label} · Cost Breakdown
         </p>
 
         {gridId && canDecompose && (
           <div className="mb-2 flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium" style={{ background: `${ACCENT}1a`, color: ACCENT }}>
+            <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium" style={{ background: `${ACCENT}1a`, color: ACCENT }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
               {gridId}
             </span>
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">dominant grid</span>
+            <span className="text-2xs text-[var(--text-tertiary)]">dominant grid</span>
           </div>
         )}
 
         {!canDecompose ? (
-          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-snug">
+          <p className="text-2xs text-[var(--text-secondary)] leading-snug">
             No NeuralWatt energy data in this bucket — power ⬌ throughput decomposition needs paired energy events.
           </p>
         ) : (() => {
@@ -290,48 +291,46 @@ function CostDecompositionPanel({
           const jouleStr = jouleRange
             ? `${jouleRange[0].toFixed(2)}× – ${jouleRange[1].toFixed(2)}×`
             : `${jouleMultiplier.toFixed(2)}×${jouleMultiplier > 1 ? ' more' : jouleMultiplier < 1 ? ' less' : ''}`;
-          const amber = '#8a6500';
-          const ember = '#b42318';
-          const moss = '#276749';
-          const powerColor = powerMultiplier > 1.2 ? amber : powerMultiplier < 0.9 ? moss : '#7a7563';
-          const jouleColor = jouleMultiplier > 1.5 ? ember : jouleMultiplier > 1.2 ? amber : '#7a7563';
+          const neutral = 'var(--text-tertiary)';
+          const powerColor = powerMultiplier > 1.2 ? 'var(--warning)' : powerMultiplier < 0.9 ? 'var(--success)' : neutral;
+          const jouleColor = jouleMultiplier > 1.5 ? 'var(--danger)' : jouleMultiplier > 1.2 ? 'var(--warning)' : neutral;
           return (
             <div className="space-y-2">
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-400">
+                <div className="flex items-center justify-between text-2xs">
+                  <span className="flex items-center gap-1.5 text-[var(--text-tertiary)]">
                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: powerColor, opacity: (powerMultiplier > 1.2 || powerMultiplier < 0.9) ? 1 : 0.4 }} />
                     Power
-                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500" title={`Bucket ${bucketPower.toFixed(0)} W · session ${sessionElecRefs.avgPower!.toFixed(0)} W`}>W</span>
+                    <span className="text-2xs text-[var(--text-tertiary)]" title={`Bucket ${bucketPower.toFixed(0)} W · session ${sessionElecRefs.avgPower!.toFixed(0)} W`}>W</span>
                   </span>
-                  <span className={`metric-mono font-semibold ${powerMultiplier > 1.2 ? 'text-amber' : powerMultiplier < 0.9 ? 'text-moss' : 'text-zinc-400 dark:text-zinc-400'}`}>
+                  <span className={`metric-mono font-semibold ${powerMultiplier > 1.2 ? 'text-amber' : powerMultiplier < 0.9 ? 'text-moss' : 'text-[var(--text-tertiary)]'}`}>
                     {powerStr}
                   </span>
                 </div>
                 <MultiplierBar value={powerMultiplier} color={powerColor} range={powerRange ?? undefined} />
               </div>
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-400">
+                <div className="flex items-center justify-between text-2xs">
+                  <span className="flex items-center gap-1.5 text-[var(--text-tertiary)]">
                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: jouleColor, opacity: jouleMultiplier > 1.2 ? 1 : 0.4 }} />
                     Joules
-                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500" title={`Bucket ${bucketJoulesPerM.toFixed(0)} J/M · session ${sessionElecRefs.joulesPerM!.toFixed(0)} J/M`}>J/M</span>
+                    <span className="text-2xs text-[var(--text-tertiary)]" title={`Bucket ${bucketJoulesPerM.toFixed(0)} J/M · session ${sessionElecRefs.joulesPerM!.toFixed(0)} J/M`}>J/M</span>
                   </span>
-                  <span className={`metric-mono font-semibold ${jouleMultiplier > 1.5 ? 'text-ember' : jouleMultiplier > 1.2 ? 'text-amber' : 'text-zinc-400 dark:text-zinc-400'}`}>
+                  <span className={`metric-mono font-semibold ${jouleMultiplier > 1.5 ? 'text-ember' : jouleMultiplier > 1.2 ? 'text-amber' : 'text-[var(--text-tertiary)]'}`}>
                     {jouleStr}
                   </span>
                 </div>
                 <MultiplierBar value={jouleMultiplier} color={jouleColor} range={jouleRange ?? undefined} />
               </div>
-              <div className="h-px bg-zinc-200/50 dark:bg-white/[0.06]" />
-              <div className="flex flex-wrap items-center gap-1.5 text-[10px] leading-snug">
+              <div className="h-px bg-[var(--border-subtle)]" />
+              <div className="flex flex-wrap items-center gap-1.5 text-2xs leading-snug">
                 <span className="metric-mono font-semibold" style={{ color: ACCENT }}>{costMultiplier.toFixed(2)}×</span>
-                <span className="text-zinc-400 dark:text-zinc-500">= Power {powerMultiplier.toFixed(2)}×</span>
-                <span className="text-zinc-300 dark:text-zinc-600">·</span>
-                <span className="text-zinc-400 dark:text-zinc-500">Joules {jouleMultiplier.toFixed(2)}×</span>
+                <span className="text-[var(--text-tertiary)]">= Power {powerMultiplier.toFixed(2)}×</span>
+                <span className="text-[var(--text-separator)]">·</span>
+                <span className="text-[var(--text-tertiary)]">Joules {jouleMultiplier.toFixed(2)}×</span>
               </div>
               {attributionRatio != null && (
-                <p className="text-[10px] leading-snug text-zinc-400 dark:text-zinc-500">
+                <p className="text-2xs leading-snug text-[var(--text-tertiary)]">
                   Billed for {(attributionRatio * 100).toFixed(0)}% of node draw{capped ? ' · ratio capped' : ''}.
                 </p>
               )}
@@ -587,28 +586,17 @@ function TimelineChartInner({ buckets }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-        <div>
-          <h2 className="ui-title">Conversation timeline</h2>
-          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Performance patterns across the session</p>
-        </div>
-        <div className="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1">
-          {(['ttft', 'total', 'tps'] as const).map(m => (
-            <button
-              key={m}
-              onClick={() => setMetric(m)}
-              aria-pressed={metric === m}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                metric === m
-                  ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border)]'
-                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              {metricConfig[m].label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PanelHeader
+        title="Conversation timeline"
+        action={
+          <SegmentedControl
+            label="Metric"
+            value={metric}
+            onChange={setMetric}
+            options={(['ttft', 'total', 'tps'] as const).map((m) => ({ value: m, label: metricConfig[m].label }))}
+          />
+        }
+      />
 
       <div ref={chartContainerRef} className="relative h-64">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
@@ -688,7 +676,7 @@ function TimelineChartInner({ buckets }: Props) {
           )}
         </AnimatePresence>
       </div>
-      <div className="flex items-center gap-4 mt-3 text-[11px] text-zinc-400 dark:text-zinc-400">
+      <div className="flex items-center gap-4 mt-3 text-2xs text-[var(--text-tertiary)]">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-4 h-0.5 rounded-full" style={{ backgroundColor: config.color }} />
           {isCostMode ? 'Blended $/M' : 'Bucket average'}
