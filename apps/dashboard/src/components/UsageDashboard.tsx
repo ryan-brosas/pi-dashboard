@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
-import { Coins, Database, Gauge, Hash, Pulse } from '@phosphor-icons/react';
 import { MetricPill } from './metrics/MetricPill';
+import { PanelHeader, SegmentedControl } from './ui/Panel';
 import { useDuckQuery } from '../hooks/useDuckQuery';
 import { formatCurrency, formatNumber, type PricingCatalog } from '@pi-tps/metrics-core';
 import { queryUsageDashboard, type UsageRange, type UsageDashboardData } from '../lib/usageQueries';
@@ -86,11 +86,43 @@ function UsageDashboard({
     () => snapshot ? snapshotRangeCoverage(snapshot, range, scope) : null,
     [snapshot, range, scope],
   );
+  // A single interval cannot show a trend, so the charts collapse instead of
+  // reserving full height for one bar.
+  const sparseRange = chartData.length <= 1;
 
   const selectRange = (nextRange: UsageRange) => {
     setRange(nextRange);
     setVisibleRunCount(RUNS_PAGE_SIZE);
   };
+
+  // Rendered in the empty state too: without it, picking a range with no data
+  // strands the user with no way to pick a different one.
+  const rangeHeader = (
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">Usage &amp; cost</h2>
+        {snapshotCoverage && (
+          <p aria-live="polite" className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs text-[var(--text-tertiary)]">
+            <span className="font-medium text-[var(--text-secondary)]">
+              {snapshotCoverage.recordCount.toLocaleString()} {snapshotCoverage.recordCount === 1 ? 'record' : 'records'} in this range
+            </span>
+            {snapshotCoverage.latestHour && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>Latest activity <time dateTime={snapshotCoverage.latestHour}>{new Date(snapshotCoverage.latestHour).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time></span>
+              </>
+            )}
+          </p>
+        )}
+      </div>
+      <SegmentedControl
+        label="Usage date range"
+        value={range}
+        onChange={selectRange}
+        options={RANGES.map((item) => ({ value: item.key, label: item.label }))}
+      />
+    </div>
+  );
 
   if (loading && !data) {
     return <div role="status" className="min-h-[60dvh] grid place-items-center text-sm text-[var(--text-tertiary)]">Loading usage history…</div>;
@@ -100,18 +132,22 @@ function UsageDashboard({
   }
   if (!data || data.summary.totalCalls === 0) {
     return (
-      <div role="status" className="min-h-[60dvh] grid place-items-center px-6 text-center text-sm text-[var(--text-tertiary)]">
-        <div>
-          <p>No native Pi usage records in this range.</p>
-          {activeSessionId && (
-            <button
-              type="button"
-              onClick={() => onSessionSelect(null)}
-              className="mt-3 min-h-11 rounded-md border border-[var(--border)] px-4 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
-            >
-              Show all runs
-            </button>
-          )}
+      <div className="page-shell space-y-5">
+        {rangeHeader}
+        <div role="status" className="card-surface grid min-h-[40dvh] place-items-center px-6 text-center text-sm text-[var(--text-tertiary)]">
+          <div>
+            <p>No usage records in this range.</p>
+            <p className="mt-1 text-2xs">Pick a wider range above{activeSessionId ? ' or show all runs' : ''}.</p>
+            {activeSessionId && (
+              <button
+                type="button"
+                onClick={() => onSessionSelect(null)}
+                className="mt-4 min-h-11 rounded-md border border-[var(--border)] px-4 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
+              >
+                Show all runs
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -126,40 +162,7 @@ function UsageDashboard({
 
   return (
     <div className="page-shell space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-2xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">Pi history</p>
-          <h2 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">Usage &amp; cost</h2>
-          {snapshotCoverage && (
-            <p aria-live="polite" className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs text-[var(--text-tertiary)]">
-              <span className="font-medium text-[var(--text-secondary)]">
-                {snapshotCoverage.recordCount.toLocaleString()} {snapshotCoverage.recordCount === 1 ? 'record' : 'records'} in this range
-              </span>
-              {snapshotCoverage.latestHour && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>Latest activity <time dateTime={snapshotCoverage.latestHour}>{new Date(snapshotCoverage.latestHour).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time></span>
-                </>
-              )}
-            </p>
-          )}
-        </div>
-        <div role="group" aria-label="Usage date range" className="grid min-h-11 w-full grid-cols-5 items-stretch gap-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-1 sm:min-h-0 sm:w-auto">
-          {RANGES.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => selectRange(item.key)}
-              aria-pressed={range === item.key}
-              className={`min-h-11 rounded-md px-2 text-2xs font-medium transition-colors sm:min-h-8 sm:px-2.5 ${
-                range === item.key
-                  ? 'bg-accent/10 text-accent ring-1 ring-inset ring-accent/15 dark:bg-accent/15'
-                  : 'text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
-              }`}
-            >{item.label}</button>
-          ))}
-        </div>
-      </div>
+      {rangeHeader}
 
       {activeSessionId && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-xs text-[var(--text-secondary)]">
@@ -176,11 +179,11 @@ function UsageDashboard({
 
       <section aria-label="Usage summary" className="card-surface px-4 py-3 sm:px-5">
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-5">
-          <MetricPill inline icon={Coins} label="Total cost" value={formatCurrency(summary.totalCostUsd)} unit={summary.estimatedModelCount > 0 ? 'est.' : undefined} color="accent" />
-          <MetricPill inline icon={Hash} label="Total tokens" value={formatNumber(summary.totalTokens)} />
-          <MetricPill inline icon={Pulse} label="Model calls" value={formatNumber(summary.totalCalls, 0)} />
-          <MetricPill inline icon={Gauge} label="Cache hit" value={pct(summary.cacheHitPct)} color="moss" />
-          <MetricPill inline icon={Database} label="Runs" value={formatNumber(summary.sessions, 0)} />
+          <MetricPill inline label="Total cost" value={formatCurrency(summary.totalCostUsd)} unit={summary.estimatedModelCount > 0 ? 'est.' : undefined} />
+          <MetricPill inline label="Total tokens" value={formatNumber(summary.totalTokens)} />
+          <MetricPill inline label="Model calls" value={formatNumber(summary.totalCalls, 0)} />
+          <MetricPill inline label="Cache hit" value={pct(summary.cacheHitPct)} />
+          <MetricPill inline label="Runs" value={formatNumber(summary.sessions, 0)} />
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-[var(--border)] pt-3 text-2xs sm:grid-cols-4">
           <div className="flex items-baseline justify-between gap-2 sm:block">
@@ -203,45 +206,54 @@ function UsageDashboard({
       </section>
 
       {(summary.estimatedModelCount > 0 || summary.unpricedModelCount > 0) && (
-        <div className="rounded-lg border border-accent/15 bg-accent/5 px-4 py-3 text-2xs text-[var(--text-secondary)]">
+        <div className="rounded-md border border-[var(--border)] px-4 py-3 text-2xs text-[var(--text-secondary)]">
           {summary.estimatedModelCount > 0 && `${summary.estimatedModelCount} model route${summary.estimatedModelCount === 1 ? '' : 's'} priced from the market catalog because Pi reported no native cost.`}
           {summary.unpricedModelCount > 0 && ` ${summary.unpricedModelCount} route${summary.unpricedModelCount === 1 ? '' : 's'} still have no matching price.`}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card-surface p-5 min-h-[340px]">
-          <div className="flex items-start justify-between mb-4">
-            <div><p className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">Burn over time</p><h3 className="text-sm font-semibold text-[var(--text-primary)]">Cost and request volume</h3></div>
-            <span className="metric-mono text-2xs text-[var(--text-tertiary)]">{range}</span>
+        <div className={`lg:col-span-2 card-surface p-5 ${sparseRange ? '' : 'min-h-[340px]'}`}>
+          <PanelHeader
+            title="Cost and requests"
+            action={<span className="metric-mono text-2xs text-[var(--text-tertiary)]">{range}</span>}
+          />
+          <div className="mb-1 flex gap-4 text-2xs text-[var(--text-tertiary)]">
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[var(--chart-primary)]" /> Cost</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[var(--chart-axis)] opacity-30" /> Calls</span>
           </div>
-          <div className="flex gap-4 text-2xs text-[var(--text-tertiary)] mb-1">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--chart-primary)]" /> Cost</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--chart-axis)] opacity-30" /> Calls</span>
-          </div>
-          <MiniBarLineChart data={chartData} height={250} />
+          <MiniBarLineChart data={chartData} height={sparseRange ? 90 : 250} />
         </div>
 
         <div className="card-surface p-5">
-          <p className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">Current month</p>
-          <div className="mt-3 space-y-4">
-            <div><span className="text-xs text-[var(--text-tertiary)]">Month to date</span><p className="metric-mono text-2xl font-semibold text-[var(--text-primary)]">{formatCurrency(summary.monthCostUsd)}</p></div>
-            <div><span className="text-xs text-[var(--text-tertiary)]">Run-rate forecast</span><p className="metric-mono text-xl font-semibold text-accent">{formatCurrency(summary.monthForecastUsd)}</p></div>
-            <div className="pt-3 border-t border-[var(--border)] text-2xs leading-relaxed text-[var(--text-tertiary)]">
-              Native costs are used when available. Missing costs are estimated from the exact provider and model route in the market catalog. Subscription charges may differ.
+          <PanelHeader title="Current month" />
+          {summary.monthCostUsd > 0 ? (
+            <div className="space-y-4">
+              <div>
+                <span className="text-xs text-[var(--text-tertiary)]">Month to date</span>
+                <p className="metric-mono text-2xl font-semibold text-[var(--text-primary)]">{formatCurrency(summary.monthCostUsd)}</p>
+              </div>
+              <div>
+                <span className="text-xs text-[var(--text-tertiary)]">Run-rate forecast</span>
+                <p className="metric-mono text-xl font-semibold text-[var(--text-secondary)]">{formatCurrency(summary.monthForecastUsd)}</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-[var(--text-tertiary)]">
+              No activity this month. The {formatCurrency(summary.totalCostUsd)} total above covers earlier activity in this range.
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="card-surface p-5 min-h-[320px]">
-        <div className="mb-4"><p className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">Token composition</p><h3 className="text-sm font-semibold text-[var(--text-primary)]">Fresh input, output, and cache reads</h3></div>
-        <div className="flex gap-4 text-2xs text-[var(--text-tertiary)] mb-1">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--chart-positive)]" /> Cache read</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--chart-primary)]" /> Fresh input</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--chart-warning)]" /> Output</span>
+      <div className={`card-surface p-5 ${sparseRange ? '' : 'min-h-[320px]'}`}>
+        <PanelHeader title="Token composition" />
+        <div className="mb-1 flex gap-4 text-2xs text-[var(--text-tertiary)]">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[var(--chart-positive)]" /> Cache read</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[var(--chart-primary)]" /> Fresh input</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[var(--chart-warning)]" /> Output</span>
         </div>
-        <MiniStackedAreaChart data={chartData} height={230} />
+        <MiniStackedAreaChart data={chartData} height={sparseRange ? 90 : 230} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -261,7 +273,7 @@ function UsageDashboard({
                 : `Showing all ${pricedData.sessions.length} runs`}
             </span>
           </div>
-          <div className="max-h-[430px] overflow-x-auto custom-scrollbar"><table className="w-full text-2xs"><thead className="sticky top-0 bg-white"><tr className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]"><th className="text-left px-5 py-2">Run</th><th className="text-right px-3 py-2">Calls</th><th className="text-right px-3 py-2">Tokens</th><th className="text-right px-5 py-2">Cost</th></tr></thead><tbody>
+          <div className="max-h-[430px] overflow-x-auto custom-scrollbar"><table className="w-full text-2xs"><thead className="sticky top-0 bg-[var(--surface)]"><tr className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]"><th className="text-left px-5 py-2">Run</th><th className="text-right px-3 py-2">Calls</th><th className="text-right px-3 py-2">Tokens</th><th className="text-right px-5 py-2">Cost</th></tr></thead><tbody>
             {visibleSessions.map((session) => <tr key={session.sessionId} className="group border-t border-[var(--border-subtle)]"><td className="max-w-[240px] p-0"><button type="button" onClick={() => onSessionSelect(session.sessionId)} aria-label={`View ${sessionLabel(session.sessionId)} usage`} aria-pressed={activeSessionId === session.sessionId} className="min-h-11 w-full truncate px-5 py-2.5 text-left transition-colors group-hover:bg-[var(--surface-muted)] focus-visible:relative focus-visible:z-10" title={session.sessionId}><span className="font-medium text-[var(--text-primary)]">{sessionLabel(session.sessionId)}</span><span className="block text-2xs text-[var(--text-tertiary)]">{new Date(session.lastSeen).toLocaleString()}</span></button></td><td className="px-3 py-2.5 text-right metric-mono">{formatNumber(session.calls, 0)}</td><td className="px-3 py-2.5 text-right metric-mono">{formatNumber(session.totalTokens)}</td><td className="px-5 py-2.5 text-right metric-mono">{formatCurrency(session.costUsd)}{session.costSource === 'catalog' && <span className="ml-1 text-2xs uppercase text-accent">est.</span>}</td></tr>)}
           </tbody></table></div>
           {hiddenRunCount > 0 && (

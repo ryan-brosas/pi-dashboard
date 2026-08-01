@@ -1,12 +1,14 @@
 import React, { useMemo, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion } from 'framer-motion';
-import { X, Clock, Hash, ArrowBendUpLeft, ArrowsLeftRight, TreeStructure, Binoculars } from '@phosphor-icons/react';
+import { X, ArrowBendUpLeft, ArrowsLeftRight, TreeStructure } from '@phosphor-icons/react';
 
 import { timelineEventKey as eventKey, type TimelineEventRow } from '../lib/queries';
 import type { DataThresholds, PricingCatalog } from '@pi-tps/metrics-core';
 import { formatDuration, formatTps, formatUsdPerM } from '@pi-tps/metrics-core';
 import { resolveUsageCost } from '../lib/usagePricing';
+import { PanelHeader } from './ui/Panel';
+import { TOKEN_SERIES } from '../lib/seriesColors';
 
 const formatTime = (ts: string) => ts.substring(11, 19);
 
@@ -21,10 +23,10 @@ const shortModel = (modelId: string) => modelId.split('/').pop() ?? modelId;
 
 function getCategory(e: TimelineEventRow & { type: 'tps' }, thresholds: DataThresholds) {
   const newRatio = e.tokensInput / e.tokensTotal;
-  if (e.tokensInput > thresholds.anomalyInputThreshold) return { label: 'anomaly', color: 'text-amber bg-amber/5 border-amber/20' };
-  if (e.ttftMs > thresholds.slowTtft && e.tokensTotal < thresholds.cacheThreshold) return { label: 'slow', color: 'text-ember bg-ember/5 border-ember/20' };
-  if (e.tokensTotal > thresholds.cacheThreshold && e.ttftMs < thresholds.fastTtft && newRatio < thresholds.highNewInputRatio) return { label: 'fast', color: 'text-moss bg-moss/5 border-moss/20' };
-  return { label: 'normal', color: 'text-[var(--text-tertiary)] bg-[var(--surface-inset)] border-[var(--border-subtle)]' };
+  if (e.tokensInput > thresholds.anomalyInputThreshold) return { label: 'anomaly', color: 'text-amber' };
+  if (e.ttftMs > thresholds.slowTtft && e.tokensTotal < thresholds.cacheThreshold) return { label: 'slow', color: 'text-ember' };
+  if (e.tokensTotal > thresholds.cacheThreshold && e.ttftMs < thresholds.fastTtft && newRatio < thresholds.highNewInputRatio) return { label: 'fast', color: 'text-moss' };
+  return { label: 'normal', color: 'text-[var(--text-tertiary)]' };
 }
 
 interface Props {
@@ -120,19 +122,18 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
       className="card-surface p-0 overflow-hidden flex flex-col"
       style={{ maxHeight: '750px' }}
     >
-      <div className="flex items-center justify-between p-5 pb-4 border-b border-[var(--border-subtle)] dark:border-white/[0.06]">
-        <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">Request Inspector</h2>
-        <span className="text-2xs metric-mono font-semibold text-[var(--text-tertiary)]">{tpsEvents.length} calls</span>
+      <div className="px-5 pt-5">
+        <PanelHeader
+          title="Request inspector"
+          action={<span className="text-2xs metric-mono text-[var(--text-tertiary)]">{tpsEvents.length} calls</span>}
+        />
       </div>
 
       {/* Cache hit rate sparkline */}
-      <div className="px-5 pt-4 pb-3 border-b border-[var(--border-subtle)] dark:border-white/[0.06]">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Binoculars size={12} className="text-accent" weight="bold" />
-            <span className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Cache Hit Rate</span>
-          </div>
-          <span className="metric-mono text-2xs font-semibold text-[var(--text-secondary)]">{avgCacheHitRate.toFixed(0)}% avg</span>
+      <div className="px-5 pb-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-2xs text-[var(--text-tertiary)]">Cache hit rate</span>
+          <span className="metric-mono text-2xs text-[var(--text-secondary)]">{avgCacheHitRate.toFixed(0)}% avg</span>
         </div>
         <button
           type="button"
@@ -144,7 +145,7 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
         >
           {sparklineBins.map((bin, i) => {
             const h = Math.max(4, (bin.rate / 100) * 100);
-            const color = bin.rate >= 80 ? 'bg-moss' : bin.rate >= 50 ? 'bg-accent' : bin.rate >= 20 ? 'bg-amber' : 'bg-ember';
+            const color = bin.rate >= 80 ? 'bg-moss' : bin.rate >= 50 ? 'bg-[var(--data-1)]' : bin.rate >= 20 ? 'bg-amber' : 'bg-ember';
             const isActive = selectedTpsIndex >= bin.startIndex && selectedTpsIndex < bin.startIndex + bin.count;
             return (
               <span key={i} aria-hidden="true" className={`relative flex-1 ${isActive ? 'z-10' : ''}`}>
@@ -173,7 +174,7 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Request Detail</p>
+                    <p className="ui-kicker">Request detail</p>
                     <p className="metric-mono text-lg font-bold text-[var(--text-primary)] mt-0.5">#{selectedTpsIndex + 1} of {tpsEvents.length}</p>
                   </div>
                   <button
@@ -186,18 +187,18 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                   </button>
                 </div>
 
-                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-semibold uppercase tracking-wider border ${getCategory(selectedTps, thresholds).color}`}>
+                <p className={`text-2xs ${getCategory(selectedTps, thresholds).color}`}>
                   {getCategory(selectedTps, thresholds).label}
-                </div>
+                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <MetricBox icon={Clock} label="Timestamp" value={formatFullTimestamp(selectedTps.timestamp)} />
-                  <MetricBox icon={Hash} label="ID" value={selectedTps.id.substring(0, 8)} />
+                  <MetricBox label="Timestamp" value={formatFullTimestamp(selectedTps.timestamp)} />
+                  <MetricBox label="ID" value={selectedTps.id.substring(0, 8)} />
                 </div>
 
                 {/* Model */}
                 <div className="space-y-3">
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Model</p>
+                  <p className="ui-kicker">Model</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <ModelPill label="Provider" value={selectedTps.provider} />
                     <ModelPill label="Model" value={shortModel(selectedTps.modelId)} fullValue={selectedTps.modelId} />
@@ -205,20 +206,20 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Token Breakdown</p>
+                  <p className="ui-kicker">Token breakdown</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <TokenPill label="Total" value={selectedTps.tokensTotal} color="bg-[var(--chart-axis)]" />
-                    <TokenPill label="New Input" value={selectedTps.tokensInput} color="bg-[var(--chart-axis)]" />
-                    <TokenPill label="Cache Read" value={selectedTps.tokensCacheRead} color="bg-accent" />
-                    <TokenPill label="Output" value={selectedTps.tokensOutput} color="bg-moss" />
+                    <TokenPill label="Total" value={selectedTps.tokensTotal} />
+                    <TokenPill label="Cache read" value={selectedTps.tokensCacheRead} color={TOKEN_SERIES.cacheRead} />
+                    <TokenPill label="New input" value={selectedTps.tokensInput} color={TOKEN_SERIES.input} />
+                    <TokenPill label="Output" value={selectedTps.tokensOutput} color={TOKEN_SERIES.output} />
                   </div>
 
                   <div className="h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden flex">
                     {selectedTps.tokensTotal > 0 && (
                       <>
-                        <div className="h-full bg-accent" style={{ width: `${(selectedTps.tokensCacheRead / selectedTps.tokensTotal) * 100}%` }} />
-                        <div className="h-full bg-[var(--chart-axis)]" style={{ width: `${(selectedTps.tokensInput / selectedTps.tokensTotal) * 100}%` }} />
-                        <div className="h-full bg-moss" style={{ width: `${(selectedTps.tokensOutput / selectedTps.tokensTotal) * 100}%` }} />
+                        <div className="h-full" style={{ background: TOKEN_SERIES.cacheRead, width: `${(selectedTps.tokensCacheRead / selectedTps.tokensTotal) * 100}%` }} />
+                        <div className="h-full" style={{ background: TOKEN_SERIES.input, width: `${(selectedTps.tokensInput / selectedTps.tokensTotal) * 100}%` }} />
+                        <div className="h-full" style={{ background: TOKEN_SERIES.output, width: `${(selectedTps.tokensOutput / selectedTps.tokensTotal) * 100}%` }} />
                       </>
                     )}
                   </div>
@@ -230,7 +231,7 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Timing</p>
+                  <p className="ui-kicker">Timing</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <TimingPill label="TTFT" value={formatDuration(selectedTps.ttftMs)} highlight />
                     <TimingPill label="Total" value={formatDuration(selectedTps.totalMs)} />
@@ -240,7 +241,7 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Speed Breakdown</p>
+                  <p className="ui-kicker">Speed breakdown</p>
                   {(() => {
                     const activeTps = selectedTps.effectiveTps;
                     const wallTps = selectedTps.wallTps;
@@ -293,7 +294,7 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Cost</p>
+                  <p className="ui-kicker">Cost</p>
                   <TimingPill label={selectedCost?.source === 'catalog' ? 'Provider estimate · est.' : 'Provider cost'} value={selectedCost && selectedCost.source !== 'unpriced' ? `$${selectedCost.costUsd.toFixed(4)}` : '-'} />
                   {/* Blended $/M for this turn. A-else-B: prefer pi-tps' precomputed
                       rateUsdPerMTokens (matches the turn-end banner exactly);
@@ -524,34 +525,31 @@ function VirtualizedRequestList({ sorted, tpsEvents, thresholds, selectedId, sel
   );
 }
 
-function MetricBox({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+function MetricBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-[var(--surface-inset)] rounded-lg p-3">
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon size={12} className="text-[var(--text-tertiary)]" weight="bold" />
-        <span className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">{label}</span>
-      </div>
-      <p className="metric-mono text-sm font-bold text-[var(--text-primary)]">{value}</p>
+    <div className="rounded-md bg-[var(--surface-inset)] p-3">
+      <p className="mb-1 text-2xs text-[var(--text-tertiary)]">{label}</p>
+      <p className="metric-mono text-sm font-semibold text-[var(--text-primary)]">{value}</p>
     </div>
   );
 }
 
 function ModelPill({ label, value, fullValue }: { label: string; value: string; fullValue?: string }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2 bg-accent/[0.04] dark:bg-accent/[0.08] rounded-lg">
-      <span className="text-2xs font-medium text-[var(--text-tertiary)]">{label}</span>
-      <span className="metric-mono text-xs font-bold text-accent truncate ml-2" title={fullValue ?? value}>{value}</span>
+    <div className="flex items-center justify-between rounded-md bg-[var(--surface-inset)] px-3 py-2">
+      <span className="text-2xs text-[var(--text-tertiary)]">{label}</span>
+      <span className="metric-mono ml-2 truncate text-xs font-semibold text-[var(--text-primary)]" title={fullValue ?? value}>{value}</span>
     </div>
   );
 }
 
-function TokenPill({ label, value, color }: { label: string; value: number; color: string }) {
+function TokenPill({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2 bg-[var(--surface-inset)] rounded-lg">
-      <span className="text-2xs font-medium text-[var(--text-tertiary)]">{label}</span>
+    <div className="flex items-center justify-between rounded-md bg-[var(--surface-inset)] px-3 py-2">
+      <span className="text-2xs text-[var(--text-tertiary)]">{label}</span>
       <div className="flex items-center gap-1.5">
-        <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
-        <span className="metric-mono text-xs font-bold text-[var(--text-primary)]">{value.toLocaleString()}</span>
+        {color && <div className="h-1.5 w-1.5 rounded-sm" style={{ background: color }} />}
+        <span className="metric-mono text-xs font-semibold text-[var(--text-primary)]">{value.toLocaleString()}</span>
       </div>
     </div>
   );

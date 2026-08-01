@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { CheckCircle, MagnifyingGlass, ShieldCheck } from '@phosphor-icons/react';
+import { MagnifyingGlass, ShieldCheck } from '@phosphor-icons/react';
 import {
   formatCurrency, formatNumber,
   type PaygDealComparison, type PricingModel,
@@ -236,10 +236,10 @@ function MarketRow({
       <td className="max-w-[300px] px-4 py-2">
         <div className="flex items-center gap-1.5">
           <span className="truncate font-medium text-[var(--text-primary)]" title={model.id}>{shortModel(model.id)}</span>
-          {observed && <span className="inline-flex items-center gap-1 rounded-sm bg-accent/10 px-1.5 py-0.5 text-2xs font-semibold uppercase text-accent"><CheckCircle size={9} weight="fill" /> used</span>}
-          {model.zdr && <span className="rounded-sm bg-moss/10 px-1.5 py-0.5 text-2xs font-semibold uppercase text-moss">ZDR</span>}
-          {model.subscription && <span className="rounded-sm bg-[var(--surface-muted)] px-1.5 py-0.5 text-2xs font-semibold uppercase text-[var(--brand-text)]">Sub</span>}
-          {model.discount > 0 && <span className="rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-2xs font-semibold text-amber-600">−{Math.round(model.discount * 100)}%</span>}
+          {observed && <span className="text-2xs text-[var(--text-secondary)]">used</span>}
+          {model.zdr && <span className="text-2xs text-[var(--text-tertiary)]">ZDR</span>}
+          {model.subscription && <span className="text-2xs text-[var(--text-tertiary)]">sub</span>}
+          {model.discount > 0 && <span className="text-2xs text-[var(--text-secondary)]">−{Math.round(model.discount * 100)}%</span>}
         </div>
         <span className="block truncate text-2xs text-[var(--text-tertiary)]">{model.org}</span>
       </td>

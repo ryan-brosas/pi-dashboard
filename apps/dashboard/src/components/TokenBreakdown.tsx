@@ -12,6 +12,14 @@ import {
 import FadingTooltip from './FadingTooltip';
 
 import type { TokenCompositionRow } from '../lib/queries';
+import { PanelHeader } from './ui/Panel';
+import { TOKEN_SERIES } from '../lib/seriesColors';
+
+const SERIES = [
+  { key: 'cacheRead', label: 'Cache read', color: TOKEN_SERIES.cacheRead },
+  { key: 'input', label: 'New input', color: TOKEN_SERIES.input },
+  { key: 'output', label: 'Output', color: TOKEN_SERIES.output },
+] as const;
 
 interface Props {
   data: TokenCompositionRow[];
@@ -44,12 +52,10 @@ function TokenBreakdownInner({ data }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Token Composition — Last 30 Requests</h2>
-          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">How cache, new input, and output compose each request</p>
-        </div>
-      </div>
+      <PanelHeader
+        title="Token composition"
+        action={<span className="text-2xs text-[var(--text-tertiary)]">Last 30 requests</span>}
+      />
 
       <div className="h-60">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
@@ -77,26 +83,27 @@ function TokenBreakdownInner({ data }: Props) {
               tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
             />
             <FadingTooltip content={<TokenTooltip />} />
-            <Bar dataKey="cacheRead" name="Cache Read" stackId="a" fill="var(--chart-positive)" fillOpacity={0.8} radius={[0, 0, 0, 0]} />
-            <Bar dataKey="input" name="New Input" stackId="a" fill="var(--chart-primary)" fillOpacity={0.8} radius={[0, 0, 0, 0]} />
-            <Bar dataKey="output" name="Output" stackId="a" fill="var(--chart-warning)" fillOpacity={0.7} radius={[2, 2, 0, 0]} />
+            {SERIES.map((series, index) => (
+              <Bar
+                key={series.key}
+                dataKey={series.key}
+                name={series.label}
+                stackId="a"
+                fill={series.color}
+                radius={index === SERIES.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
+              />
+            ))}
           </RBarChart>
         </ResponsiveContainer>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-2xs">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-accent" />
-          <span className="text-[var(--text-tertiary)]">Cache Read</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-[var(--chart-axis)]" />
-          <span className="text-[var(--text-tertiary)]">New Input</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-moss" />
-          <span className="text-[var(--text-tertiary)]">Output</span>
-        </div>
+        {SERIES.map((series) => (
+          <div key={series.key} className="flex items-center gap-1.5">
+            <div className="h-2 w-2 rounded-sm" style={{ background: series.color }} />
+            <span className="text-[var(--text-tertiary)]">{series.label}</span>
+          </div>
+        ))}
       </div>
     </motion.div>
   );

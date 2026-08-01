@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Gauge, TrendUp, TrendDown, Minus } from '@phosphor-icons/react';
+import { TrendUp, TrendDown, Minus } from '@phosphor-icons/react';
 import type { ThresholdStat } from '../lib/queries';
+import { PanelHeader } from './ui/Panel';
 import { formatThreshold, formatDuration } from '@pi-tps/metrics-core';
 
 interface Props {
@@ -20,10 +21,7 @@ function ThresholdAnalysisInner({ stats }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex items-center gap-2 mb-5">
-        <Gauge size={18} className="text-accent" weight="bold" />
-        <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">Threshold Crossings</h2>
-      </div>
+      <PanelHeader title="Threshold crossings" />
 
       <div className="space-y-4">
         {stats.map((s) => {
@@ -35,7 +33,7 @@ function ThresholdAnalysisInner({ stats }: Props) {
               className="group"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                <span className="text-2xs text-[var(--text-tertiary)]">
                   At {formatThreshold(s.threshold)} tokens
                 </span>
                 <span className="text-2xs metric-mono text-[var(--text-tertiary)]">
@@ -46,7 +44,7 @@ function ThresholdAnalysisInner({ stats }: Props) {
               {/* Progress bar */}
               <div className="h-1.5 bg-[var(--surface-inset)] rounded-full overflow-hidden mb-3">
                 <motion.div
-                  className="h-full rounded-full bg-accent"
+                  className="h-full rounded-full bg-[var(--text-tertiary)]"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress * 100}%` }}
                   transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -59,12 +57,8 @@ function ThresholdAnalysisInner({ stats }: Props) {
                   <p className="text-2xs text-[var(--text-tertiary)] mt-0.5">Below</p>
                 </div>
                 <div className="flex items-center justify-center">
-                  <div className={`flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full ${
-                    s.ttftDelta > 0
-                      ? 'bg-ember/10 text-ember'
-                      : s.ttftDelta < 0
-                      ? 'bg-moss/10 text-moss'
-                      : 'bg-[var(--surface-inset)] dark:bg-white/[0.04] text-[var(--text-tertiary)]'
+                  <div className={`flex items-center gap-1 text-2xs ${
+                    s.ttftDelta > 0 ? 'text-ember' : s.ttftDelta < 0 ? 'text-moss' : 'text-[var(--text-tertiary)]'
                   }`}>
                     {s.ttftDelta > 0 ? <TrendUp size={10} /> : s.ttftDelta < 0 ? <TrendDown size={10} /> : <Minus size={10} />}
                     {s.ttftDelta !== 0 && <span className="metric-mono">{formatDuration(Math.abs(Math.round(s.ttftDelta)))}</span>}

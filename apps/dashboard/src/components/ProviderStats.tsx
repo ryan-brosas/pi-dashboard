@@ -1,7 +1,5 @@
 import { memo, useMemo, useState } from 'react';
-import {
-  CaretDown, CaretRight, CheckCircle, Clock, Gauge, MagnifyingGlass, Pulse, Timer,
-} from '@phosphor-icons/react';
+import { CaretDown, CaretRight, MagnifyingGlass } from '@phosphor-icons/react';
 import {
   CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -108,14 +106,8 @@ function ProviderStats({
   return (
     <div className="page-shell space-y-5">
       <div className="card-surface flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3">
-        <div className="mr-auto min-w-[210px]">
-          <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-            <Pulse size={12} weight="bold" /> TPS + TTFT
-          </div>
-          <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">Provider monitor</h2>
-        </div>
         <Stat label="Providers" value={formatNumber(providerCount, 0)} />
-        <Stat label="TPS routes" value={formatNumber(tpsRouteCount, 0)} accent />
+        <Stat label="TPS routes" value={formatNumber(tpsRouteCount, 0)} />
         <Stat label="Local" value={formatNumber(observedCount, 0)} />
         <Stat label="Market" value={formatNumber(marketCount, 0)} />
         <Stat label="Fastest p50" value={fastestMarket?.marketTps !== null && fastestMarket ? formatTps(fastestMarket.marketTps) : '—'} />
@@ -132,13 +124,13 @@ function ProviderStats({
             className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] py-2 pl-8 pr-3 text-xs text-[var(--text-primary)] outline-none focus:border-accent/40"
           />
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
+        <div role="group" aria-label="Source filter" className="flex items-center gap-2">
           {(['all', 'local', 'market'] as SourceFilter[]).map((item) => (
             <button
               key={item}
               onClick={() => setSource(item)}
               aria-pressed={source === item}
-              className={`rounded-md px-2.5 py-1.5 text-2xs font-medium capitalize transition-colors ${source === item ? 'bg-accent/10 text-accent' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
+              className={`px-2 py-1.5 text-2xs font-medium capitalize transition-colors ${source === item ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
             >
               {item}
             </button>
@@ -146,8 +138,8 @@ function ProviderStats({
         </div>
         {groups.length > 0 && (
           <div className="flex items-center gap-1">
-            <button onClick={expandAll} className="rounded-md px-2 py-1.5 text-2xs font-medium text-[var(--text-tertiary)] transition-colors hover:text-accent">Expand all</button>
-            <button onClick={collapseAll} className="rounded-md px-2 py-1.5 text-2xs font-medium text-[var(--text-tertiary)] transition-colors hover:text-accent">Collapse all</button>
+            <button onClick={expandAll} className="px-2 py-1.5 text-2xs font-medium text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]">Expand all</button>
+            <button onClick={collapseAll} className="px-2 py-1.5 text-2xs font-medium text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]">Collapse all</button>
           </div>
         )}
       </div>
@@ -171,7 +163,7 @@ function ProviderStats({
               <div className="flex items-center gap-2">
                 {collapsed ? <CaretRight size={13} className="text-[var(--text-tertiary)]" /> : <CaretDown size={13} className="text-[var(--text-tertiary)]" />}
                 <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]">{provider}</h3>
+                  <h3 className="ui-title">{provider}</h3>
                   <p className="text-2xs text-[var(--text-tertiary)]">{providerRoutes.length} route{providerRoutes.length === 1 ? '' : 's'}{hasObserved ? ' · observed' : ''}</p>
                 </div>
               </div>
@@ -189,7 +181,7 @@ function ProviderStats({
                 {hiddenCount > 0 && (
                   <button
                     onClick={() => expandGroup(provider)}
-                    className="border-t border-[var(--border)] px-4 py-2.5 text-2xs font-medium text-accent transition-colors hover:bg-accent/5"
+                    className="w-full border-t border-[var(--border)] px-4 py-2.5 text-left text-2xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                   >
                     Show {hiddenCount} more {provider} route{hiddenCount === 1 ? '' : 's'}
                   </button>
@@ -239,11 +231,9 @@ function RouteCard({ route, active }: { route: ProviderStatsRoute; active: boole
           <h4 className="truncate text-sm font-semibold text-[var(--text-primary)]" title={route.modelId}>{route.modelName}</h4>
           <p className="truncate text-2xs text-[var(--text-tertiary)]" title={route.modelId}>{route.modelId}</p>
         </div>
-        {hasLocalTiming ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-moss/10 px-1.5 py-0.5 text-2xs font-semibold uppercase text-moss"><CheckCircle size={9} weight="fill" /> local</span>
-        ) : (
-          <span className="shrink-0 rounded-sm bg-accent/10 px-1.5 py-0.5 text-2xs font-semibold uppercase text-accent">market p50</span>
-        )}
+        <span className="shrink-0 text-2xs text-[var(--text-tertiary)]">
+          {hasLocalTiming ? 'local' : 'market p50'}
+        </span>
       </div>
 
       <div className="mt-2 flex items-center gap-3 text-2xs text-[var(--text-tertiary)]">
@@ -252,10 +242,10 @@ function RouteCard({ route, active }: { route: ProviderStatsRoute; active: boole
       </div>
 
       <div className="mt-3 grid grid-cols-4">
-        <PrimaryMetric icon={Clock} label="TTFT" value={primaryTtft !== null ? formatDuration(Math.round(primaryTtft)) : '—'} />
-        <PrimaryMetric icon={Gauge} label="TPS" value={primaryTps !== null ? formatTps(primaryTps) : '—'} accent />
-        <PrimaryMetric icon={Timer} label="TTFT p90" value={route.marketTtftP90Ms !== null ? formatDuration(Math.round(route.marketTtftP90Ms)) : '—'} />
-        <PrimaryMetric icon={Pulse} label="Uptime" value={route.uptime30m !== null ? `${route.uptime30m.toFixed(1)}%` : '—'} />
+        <PrimaryMetric label="TTFT" value={primaryTtft !== null ? formatDuration(Math.round(primaryTtft)) : '—'} />
+        <PrimaryMetric label="TPS" value={primaryTps !== null ? formatTps(primaryTps) : '—'} />
+        <PrimaryMetric label="TTFT p90" value={route.marketTtftP90Ms !== null ? formatDuration(Math.round(route.marketTtftP90Ms)) : '—'} />
+        <PrimaryMetric label="Uptime" value={route.uptime30m !== null ? `${route.uptime30m.toFixed(1)}%` : '—'} />
       </div>
 
       <figure className="mt-2 rounded-md bg-[var(--surface-inset)] p-2" aria-label={`${route.modelName} benchmark profile`}>
@@ -276,7 +266,7 @@ function RouteCard({ route, active }: { route: ProviderStatsRoute; active: boole
                   <YAxis yAxisId="tps" hide domain={['auto', 'auto']} />
                   <YAxis yAxisId="ttft" orientation="right" hide domain={['auto', 'auto']} />
                   <Tooltip
-                    contentStyle={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
+                    contentStyle={{ background: 'var(--overlay)', border: '1px solid var(--border-strong)', borderRadius: 8, fontSize: 11 }}
                     formatter={(value, name) => name === 'TTFT' ? [formatDuration(Math.round(Number(value))), name] : [formatTps(Number(value)), name]}
                   />
                   <Line yAxisId="tps" type="monotone" dataKey="tps" name="TPS" stroke="var(--chart-primary)" strokeWidth={1.75} dot={{ r: 2.5, fill: 'var(--chart-primary)' }} connectNulls={false} />
@@ -306,20 +296,20 @@ function RouteCard({ route, active }: { route: ProviderStatsRoute; active: boole
   );
 }
 
-function PrimaryMetric({ icon: Icon, label, value, accent = false }: { icon: typeof Gauge; label: string; value: string; accent?: boolean }) {
+function PrimaryMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 border-l border-[var(--border)] px-1.5 first:border-l-0 first:pl-0">
-      <div className="flex min-h-8 items-start gap-1 text-2xs font-semibold uppercase leading-4 tracking-wider text-[var(--text-tertiary)]"><Icon size={11} className="mt-0.5 shrink-0" /> {label}</div>
-      <p className={`metric-mono mt-1 text-sm font-semibold tracking-tight ${accent ? 'text-[var(--brand-text)]' : 'text-[var(--text-primary)]'}`}>{value}</p>
+      <p className="min-h-8 text-2xs leading-4 text-[var(--text-tertiary)]">{label}</p>
+      <p className="metric-mono mt-1 text-sm font-semibold text-[var(--text-primary)]">{value}</p>
     </div>
   );
 }
 
-function Stat({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-[72px] border-l border-[var(--border)] pl-4">
-      <p className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]">{label}</p>
-      <p className={`metric-mono mt-1 text-lg font-semibold ${accent ? 'text-[var(--brand-text)]' : 'text-[var(--text-primary)]'}`}>{value}</p>
+    <div className="min-w-[72px] border-l border-[var(--border)] pl-4 first:border-l-0 first:pl-0">
+      <p className="ui-kicker">{label}</p>
+      <p className="metric-mono mt-1 text-lg font-semibold text-[var(--text-primary)]">{value}</p>
     </div>
   );
 }

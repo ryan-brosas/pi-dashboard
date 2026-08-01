@@ -10,7 +10,6 @@ import {
   X,
   Table,
   CaretDown,
-  Database,
   DownloadSimple,
 } from '@phosphor-icons/react';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
@@ -1192,8 +1191,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
         onClick={() => editorCollapsed ? expandEditor() : (result ? collapseEditor() : undefined)}
         className={`flex items-center gap-2 px-4 py-3 border-b border-[var(--border)] shrink-0 transition-colors duration-150 ${result ? 'cursor-pointer hover:bg-[var(--surface-inset)]' : ''}`}
       >
-        <Database size={16} className="text-accent shrink-0" weight="bold" />
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] shrink-0">SQL Playground</h2>
+        <h2 className="ui-title shrink-0">SQL playground</h2>
         <span className="text-2xs metric-mono text-[var(--text-tertiary)] shrink-0">DuckDB WASM · in-browser</span>
         {editorCollapsed && sqlPreview && (
           <>

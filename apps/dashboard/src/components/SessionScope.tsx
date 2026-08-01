@@ -1,4 +1,4 @@
-import { CaretDown, FolderOpen, X } from '@phosphor-icons/react';
+import { CaretDown, X } from '@phosphor-icons/react';
 
 export interface SessionOption {
   sessionId: string;
@@ -20,7 +20,6 @@ export default function SessionScope({ sessions, activeSessionId, onSelect, onRe
   const active = sessions.find((s) => s.sessionId === activeSessionId) ?? null;
   return (
     <div className="px-4 sm:px-6 pb-2.5 flex items-center gap-2" aria-busy={loading || undefined}>
-      <FolderOpen size={13} className="text-[var(--text-tertiary)] shrink-0" weight="bold" aria-hidden="true" />
       <div className="relative min-w-0 flex-1 sm:flex-none">
         <select
           value={activeSessionId ?? ''}

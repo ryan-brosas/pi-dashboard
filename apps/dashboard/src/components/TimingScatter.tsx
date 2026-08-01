@@ -8,6 +8,7 @@ import FadingTooltip from './FadingTooltip';
 import { timelineEventKey, type ScatterPoint } from '../lib/queries';
 import { formatDuration, formatThreshold } from '@pi-tps/metrics-core';
 import type { DataThresholds } from '@pi-tps/metrics-core';
+import { PanelHeader, SegmentedControl } from './ui/Panel';
 
 interface Props {
   data: ScatterPoint[];
@@ -141,28 +142,24 @@ function TimingScatterInner({ data, onPointClick, thresholds }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">TTFT vs Context Size</h2>
-          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Color indicates cache efficiency category derived from data.{chartData.length > MAX_POINTS ? ` Showing ${displayData.length} of ${chartData.length} points.` : ''}</p>
-        </div>
-        <div className="flex items-center gap-1 rounded-md bg-[var(--surface-muted)] p-0.5">
-          {(['log', 'linear'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setScale(s)}
-              aria-pressed={scale === s}
-              className={`rounded-sm px-3 py-1.5 text-xs font-medium transition-colors ${
-                scale === s
-                  ? 'bg-[var(--surface)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              {s === 'log' ? 'Log Scale' : 'Linear'}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PanelHeader
+        title="TTFT vs context size"
+        action={
+          <>
+            {chartData.length > MAX_POINTS && (
+              <span className="text-2xs text-[var(--text-tertiary)]">
+                {displayData.length} of {chartData.length} points
+              </span>
+            )}
+            <SegmentedControl
+              label="Scale"
+              value={scale}
+              onChange={setScale}
+              options={[{ value: 'log', label: 'Log' }, { value: 'linear', label: 'Linear' }] as const}
+            />
+          </>
+        }
+      />
 
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>

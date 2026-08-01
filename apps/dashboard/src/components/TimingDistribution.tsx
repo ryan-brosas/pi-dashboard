@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Timer } from '@phosphor-icons/react';
 import type { TtftBinRow } from '../lib/queries';
 import { formatDuration } from '@pi-tps/metrics-core';
+import { PanelHeader } from './ui/Panel';
 
 interface Props {
   bins: TtftBinRow[];
@@ -19,22 +19,14 @@ function TimingDistributionInner({ bins, fastCount, slowCount, percentiles }: Pr
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-accent/10 dark:bg-accent/15 rounded-md">
-            <Timer size={16} className="text-accent" weight="bold" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">TTFT Distribution</h2>
-            <p className="text-sm text-[var(--text-tertiary)]">Where time is spent across all calls</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 text-2xs">
-          <span className="metric-mono font-semibold text-moss">{fastCount} fast</span>
-          <span className="text-[var(--text-separator)]">·</span>
-          <span className="metric-mono font-semibold text-ember">{slowCount} slow</span>
-        </div>
-      </div>
+      <PanelHeader
+        title="TTFT distribution"
+        action={
+          <span className="text-2xs metric-mono text-[var(--text-tertiary)]">
+            {fastCount} fast · {slowCount} slow
+          </span>
+        }
+      />
 
       <div className="space-y-3">
         {bins.map((bin) => (

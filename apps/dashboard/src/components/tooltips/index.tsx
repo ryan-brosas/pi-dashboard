@@ -1,6 +1,7 @@
 import { Warning, Info } from '@phosphor-icons/react';
 import type { ModelInfo } from '@pi-tps/metrics-core';
 import { formatTps, formatCurrency, formatDuration, formatNumber } from '@pi-tps/metrics-core';
+import { TOKEN_SERIES } from '../../lib/seriesColors';
 
 export function TpsTooltip({ activeTps, wallTps, lossPct, mode }: { activeTps: number; wallTps: number; lossPct: number; mode: 'avg' | 'weighted' }) {
   const wallShare = activeTps > 0 ? (wallTps / activeTps) * 100 : 0;
@@ -125,7 +126,7 @@ export function RequestsTooltip({
             <span className="metric-mono font-medium text-accent">{cachePct.toFixed(0)}%</span>
           </div>
           <div className="h-1 rounded-full overflow-hidden bg-[var(--surface-inset)]">
-            <div className="h-full bg-accent" style={{ width: `${cachePct}%` }} />
+            <div className="h-full" style={{ background: TOKEN_SERIES.cacheRead, width: `${cachePct}%` }} />
           </div>
         </div>
         <div>
@@ -487,28 +488,28 @@ export function TokensTooltip({ input, output, cacheRead, cacheWrite, total, tot
       <div className="space-y-1 mb-2">
         <div className="flex items-center justify-between text-2xs">
           <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--chart-axis)]" />
+            <span className="h-1.5 w-1.5 rounded-sm" style={{ background: TOKEN_SERIES.input }} />
             New input
           </span>
           <span className="metric-mono font-medium text-[var(--text-primary)]">{formatNumber(input)} <span className="text-[var(--text-tertiary)]">({inputPct.toFixed(0)}%)</span></span>
         </div>
         <div className="flex items-center justify-between text-2xs">
           <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+            <span className="h-1.5 w-1.5 rounded-sm" style={{ background: TOKEN_SERIES.output }} />
             Output
           </span>
           <span className="metric-mono font-medium text-[var(--text-primary)]">{formatNumber(output)} <span className="text-[var(--text-tertiary)]">({outputPct.toFixed(0)}%)</span></span>
         </div>
         <div className="flex items-center justify-between text-2xs">
           <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber" />
+            <span className="h-1.5 w-1.5 rounded-sm" style={{ background: TOKEN_SERIES.cacheRead }} />
             Cache read
           </span>
           <span className="metric-mono font-medium text-[var(--text-primary)]">{formatNumber(cacheRead)} <span className="text-[var(--text-tertiary)]">({cacheReadPct.toFixed(0)}%)</span></span>
         </div>
         <div className="flex items-center justify-between text-2xs">
           <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-moss" />
+            <span className="h-1.5 w-1.5 rounded-sm" style={{ background: TOKEN_SERIES.cacheWrite }} />
             Cache write
           </span>
           <span className="metric-mono font-medium text-[var(--text-primary)]">{formatNumber(cacheWrite)} <span className="text-[var(--text-tertiary)]">({cacheWritePct.toFixed(0)}%)</span></span>
@@ -516,10 +517,10 @@ export function TokensTooltip({ input, output, cacheRead, cacheWrite, total, tot
       </div>
       <div>
         <div className="h-1.5 rounded-full overflow-hidden flex">
-          <div className="h-full bg-[var(--chart-axis)]" style={{ width: `${inputPct}%` }} />
-          <div className="h-full bg-accent" style={{ width: `${outputPct}%` }} />
-          <div className="h-full bg-amber" style={{ width: `${cacheReadPct}%` }} />
-          <div className="h-full bg-moss" style={{ width: `${cacheWritePct}%` }} />
+          <div className="h-full" style={{ background: TOKEN_SERIES.input, width: `${inputPct}%` }} />
+          <div className="h-full" style={{ background: TOKEN_SERIES.output, width: `${outputPct}%` }} />
+          <div className="h-full" style={{ background: TOKEN_SERIES.cacheRead, width: `${cacheReadPct}%` }} />
+          <div className="h-full" style={{ background: TOKEN_SERIES.cacheWrite, width: `${cacheWritePct}%` }} />
         </div>
       </div>
       <div className="space-y-1 mt-2 pt-2 border-t border-[var(--border)]">

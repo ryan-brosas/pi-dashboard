@@ -6,6 +6,7 @@ import {
 import FadingTooltip from './FadingTooltip';
 
 import { formatCurrency, formatDuration, formatTps } from '@pi-tps/metrics-core';
+import { PanelHeader } from './ui/Panel';
 
 interface SessionScatterData {
   sessions: Array<{
@@ -121,8 +122,7 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
 
   // Color by model — hash model name to one of a set of colors
   const modelColors = [
-    'var(--chart-primary)', 'var(--chart-positive)', 'var(--chart-warning)', 'var(--chart-danger)', 'var(--chart-secondary)',
-    '#db2777', 'var(--accent-light)', '#65a30d', '#ea580c', '#6d28d9',
+    'var(--data-1)', 'var(--data-2)', 'var(--data-3)', 'var(--data-4)', 'var(--data-5)',
   ];
   const modelToColor = new Map<string, string>();
   let colorIdx = 0;
@@ -140,12 +140,10 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Run comparison</h2>
-          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Each dot is one session. Bubble size = request count. Color = model.</p>
-        </div>
-      </div>
+      <PanelHeader
+        title="Run comparison"
+        action={<span className="text-2xs text-[var(--text-tertiary)]">Bubble size = requests</span>}
+      />
 
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
@@ -164,6 +162,7 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
               axisLine={false}
               tickLine={false}
               dy={8}
+              tickFormatter={(value: number) => formatTps(value)}
             />
             <YAxis
               type="number"

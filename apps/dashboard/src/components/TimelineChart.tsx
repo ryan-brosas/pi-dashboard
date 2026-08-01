@@ -8,6 +8,7 @@ import FadingTooltip from './FadingTooltip';
 
 import type { TimingBucketRow } from '../lib/queries';
 import { formatUsdPerM } from '@pi-tps/metrics-core';
+import { PanelHeader, SegmentedControl } from './ui/Panel';
 
 interface Props {
   buckets: TimingBucketRow[];
@@ -290,11 +291,9 @@ function CostDecompositionPanel({
           const jouleStr = jouleRange
             ? `${jouleRange[0].toFixed(2)}× – ${jouleRange[1].toFixed(2)}×`
             : `${jouleMultiplier.toFixed(2)}×${jouleMultiplier > 1 ? ' more' : jouleMultiplier < 1 ? ' less' : ''}`;
-          const amber = '#8a6500';
-          const ember = '#b42318';
-          const moss = '#276749';
-          const powerColor = powerMultiplier > 1.2 ? amber : powerMultiplier < 0.9 ? moss : '#7a7563';
-          const jouleColor = jouleMultiplier > 1.5 ? ember : jouleMultiplier > 1.2 ? amber : '#7a7563';
+          const neutral = 'var(--text-tertiary)';
+          const powerColor = powerMultiplier > 1.2 ? 'var(--warning)' : powerMultiplier < 0.9 ? 'var(--success)' : neutral;
+          const jouleColor = jouleMultiplier > 1.5 ? 'var(--danger)' : jouleMultiplier > 1.2 ? 'var(--warning)' : neutral;
           return (
             <div className="space-y-2">
               <div className="space-y-1">
@@ -587,28 +586,17 @@ function TimelineChartInner({ buckets }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-        <div>
-          <h2 className="ui-title">Conversation timeline</h2>
-          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Performance patterns across the session</p>
-        </div>
-        <div className="flex items-center gap-1 bg-[var(--surface-muted)] rounded-md p-1">
-          {(['ttft', 'total', 'tps'] as const).map(m => (
-            <button
-              key={m}
-              onClick={() => setMetric(m)}
-              aria-pressed={metric === m}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                metric === m
-                  ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border)]'
-                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              {metricConfig[m].label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PanelHeader
+        title="Conversation timeline"
+        action={
+          <SegmentedControl
+            label="Metric"
+            value={metric}
+            onChange={setMetric}
+            options={(['ttft', 'total', 'tps'] as const).map((m) => ({ value: m, label: metricConfig[m].label }))}
+          />
+        }
+      />
 
       <div ref={chartContainerRef} className="relative h-64">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>

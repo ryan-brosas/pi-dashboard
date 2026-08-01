@@ -1,12 +1,12 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { HardDrives } from '@phosphor-icons/react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer
 } from 'recharts';
 import FadingTooltip from './FadingTooltip';
 
 import type { CacheOverallSlice, CacheOverTimeInterval } from '../lib/queries';
+import { PanelHeader } from './ui/Panel';
 
 interface Props {
   overall: CacheOverallSlice[];
@@ -32,12 +32,7 @@ function CacheEfficiencyInner({ overall, overTime, hitRate }: Props) {
       transition={{ duration: 0.2 }}
       className="card-surface p-6 flex flex-col"
     >
-      <div className="flex items-center gap-2 mb-5">
-        <div className="p-1.5 bg-accent/10 dark:bg-accent/15 rounded-md">
-          <HardDrives size={16} className="text-accent" weight="bold" />
-        </div>
-        <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">Cache Efficiency</h2>
-      </div>
+      <PanelHeader title="Cache efficiency" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Donut */}
@@ -96,10 +91,10 @@ function CacheEfficiencyInner({ overall, overTime, hitRate }: Props) {
 
       {/* Over-time cache hit rate */}
       <div className="mt-5 pt-4 border-t border-[var(--border-subtle)] dark:border-white/[0.06]">
-        <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">Cache hit rate over time (by request range)</p>
+        <p className="mb-3 text-2xs text-[var(--text-tertiary)]">Hit rate by request range</p>
         <div className="space-y-1.5">
           {overTime.map((c, i) => {
-            const color = c.hitRate >= 80 ? 'bg-moss' : c.hitRate >= 50 ? 'bg-accent' : c.hitRate >= 20 ? 'bg-amber' : 'bg-ember';
+            const color = c.hitRate >= 80 ? 'bg-moss' : c.hitRate >= 50 ? 'bg-[var(--data-1)]' : c.hitRate >= 20 ? 'bg-amber' : 'bg-ember';
             const textColor = c.hitRate >= 80 ? 'text-moss' : c.hitRate >= 50 ? 'text-accent' : c.hitRate >= 20 ? 'text-amber' : 'text-ember';
             return (
               <div key={i} className="flex items-center gap-2">

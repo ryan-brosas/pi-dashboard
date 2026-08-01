@@ -1,7 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef, Suspense, lazy } from 'react';
-import {
-  FileArrowUp, Pulse, Timer, Flame, Coins, Gauge, Clock, Hash, UploadSimple,
-} from '@phosphor-icons/react';
+import { FileArrowUp, UploadSimple } from '@phosphor-icons/react';
 import {
   DEFAULT_THRESHOLDS, formatCurrency, formatDuration, formatNumber, formatTps, getTpsEvents,
 } from '@pi-tps/metrics-core';
@@ -484,7 +482,6 @@ export default function App() {
                   >
                   <div className="flex items-center gap-x-4 border-b border-[var(--border)] pb-2">
                     <div className="mr-auto flex min-w-0 items-center gap-3">
-                      <span className="status-dot shrink-0" aria-hidden="true" />
                       <div className="min-w-0">
                         <p className="ui-kicker">Weighted throughput</p>
                         <div className="flex items-baseline gap-2">
@@ -493,10 +490,11 @@ export default function App() {
                           </span>
                           <span className="text-xs font-medium text-[var(--text-tertiary)]">tok/s</span>
                         </div>
-                        <p className="hidden truncate text-2xs text-[var(--text-secondary)] md:block">
-                          Across {summary.totalCalls.toLocaleString()} calls
-                          {dashboardModelRouteCount > 0 && <> · {dashboardModelRouteCount} route{dashboardModelRouteCount === 1 ? '' : 's'}</>}
-                        </p>
+                        {dashboardModelRouteCount > 0 && (
+                          <p className="hidden truncate text-2xs text-[var(--text-secondary)] md:block">
+                            Across {dashboardModelRouteCount} route{dashboardModelRouteCount === 1 ? '' : 's'}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-4">
@@ -519,7 +517,7 @@ export default function App() {
                     tabIndex={0}
                     className="scrollbar-hide mt-2 flex gap-3 overflow-x-auto pb-0.5 [&>*]:w-[108px] [&>*]:shrink-0 md:grid md:grid-cols-7 md:gap-0 md:overflow-visible md:pb-0 md:[&>*]:w-auto md:[&>*]:min-w-0 md:[&>*]:border-l md:[&>*]:border-[var(--border)] md:[&>*]:pl-3 md:[&>*:first-child]:border-l-0 md:[&>*:first-child]:pl-0"
                   >
-                    <MetricPill inline icon={Pulse} label="Requests" value={formatNumber(summary.totalCalls)} tooltip={
+                    <MetricPill inline label="Requests" value={formatNumber(summary.totalCalls)} tooltip={
                       <RequestsTooltip
                         total={summary.totalCalls}
                         models={summaryModels}
@@ -529,12 +527,12 @@ export default function App() {
                         fastCalls={summary.fastCalls}
                       />
                     } />
-                    <MetricPill inline icon={Timer} label="Total time" value={formatDuration(summary.wallClockMs)} tooltip={<TotalTimeTooltip wallClockMs={summary.wallClockMs} totalTimeMs={summary.totalTimeMs} generationMs={summary.totalGenerationMs} />} />
-                    <TpsPill inline icon={Gauge} label="Avg TPS" activeTps={summary.avgTps} wallTps={summary.avgWallTps} lossPct={summary.tpsLoss} mode="avg" />
-                    <MetricPill inline icon={Clock} label="Avg TTFT" value={formatDuration(Math.round(summary.avgTtft))} tooltip={<TtftTooltip avgTtft={summary.avgTtft} p50={summary.ttftP50} p75={summary.ttftP75} p90={summary.ttftP90} p99={summary.ttftP99} min={summary.minTtft} max={summary.maxTtft} />} />
-                    <MetricPill inline icon={Flame} label="Stalls" value={formatNumber(summary.totalStallCount)} color="ember" tooltip={<StallsTooltip count={summary.totalStallCount} ms={summary.totalStallMs} totalTimeMs={summary.totalTimeMs} />} />
-                    <MetricPill inline icon={Coins} label="Cost" value={formatCurrency(dashboardCostUsd)} unit={dashboardCostEstimated ? 'est.' : undefined} tooltip={<CostTooltip totalCost={dashboardCostUsd} energyCost={null} costSource="tps" models={summaryModels} totalTokens={summary.totalTokens} estimated={dashboardCostEstimated} />} />
-                    <MetricPill inline icon={Hash} label="Tokens" value={formatNumber(summary.totalTokens)} tooltip={<TokensTooltip input={summary.totalInput} output={summary.totalOutput} cacheRead={summary.totalCacheRead} cacheWrite={summary.totalCacheWrite} total={summary.totalTokens} totalCost={dashboardCostUsd} />} />
+                    <MetricPill inline label="Total time" value={formatDuration(summary.wallClockMs)} tooltip={<TotalTimeTooltip wallClockMs={summary.wallClockMs} totalTimeMs={summary.totalTimeMs} generationMs={summary.totalGenerationMs} />} />
+                    <TpsPill inline label="Avg TPS" activeTps={summary.avgTps} wallTps={summary.avgWallTps} lossPct={summary.tpsLoss} mode="avg" />
+                    <MetricPill inline label="Avg TTFT" value={formatDuration(Math.round(summary.avgTtft))} tooltip={<TtftTooltip avgTtft={summary.avgTtft} p50={summary.ttftP50} p75={summary.ttftP75} p90={summary.ttftP90} p99={summary.ttftP99} min={summary.minTtft} max={summary.maxTtft} />} />
+                    <MetricPill inline label="Stalls" value={formatNumber(summary.totalStallCount)} tooltip={<StallsTooltip count={summary.totalStallCount} ms={summary.totalStallMs} totalTimeMs={summary.totalTimeMs} />} />
+                    <MetricPill inline label="Cost" value={formatCurrency(dashboardCostUsd)} unit={dashboardCostEstimated ? 'est.' : undefined} tooltip={<CostTooltip totalCost={dashboardCostUsd} energyCost={null} costSource="tps" models={summaryModels} totalTokens={summary.totalTokens} estimated={dashboardCostEstimated} />} />
+                    <MetricPill inline label="Tokens" value={formatNumber(summary.totalTokens)} tooltip={<TokensTooltip input={summary.totalInput} output={summary.totalOutput} cacheRead={summary.totalCacheRead} cacheWrite={summary.totalCacheWrite} total={summary.totalTokens} totalCost={dashboardCostUsd} />} />
                   </div>
                 </section>
 
@@ -558,17 +556,6 @@ export default function App() {
                       <TokenBreakdown data={tokenComposition ?? []} />
                     </div>
                     <div className="lg:col-span-4 flex flex-col gap-5">
-                      {summaryModels.length > 1 && (
-                        <Suspense fallback={<div aria-hidden="true" className="h-56 panel animate-pulse" />}>
-                          <ModelPerformance
-                            models={summaryModels}
-                            avgTps={summary?.avgTps ?? 0}
-                            weightedTps={summary?.weightedTps ?? 0}
-                            totalCalls={summary?.totalCalls ?? 0}
-                            estimatedModelIds={estimatedModelIds}
-                          />
-                        </Suspense>
-                      )}
                       <ThresholdAnalysis stats={thresholdStats ?? []} />
                       <AnomalyDetector anomalies={anomalies ?? []} />
                       <RequestInspector
@@ -581,6 +568,15 @@ export default function App() {
                     </div>
                   </div>
                 </Suspense>
+                {summaryModels.length > 1 && (
+                  <Suspense fallback={<div aria-hidden="true" className="h-56 panel animate-pulse" />}>
+                    <ModelPerformance
+                      models={summaryModels}
+                      totalCalls={summary?.totalCalls ?? 0}
+                      estimatedModelIds={estimatedModelIds}
+                    />
+                  </Suspense>
+                )}
                 {resolvedMultiSummary && resolvedMultiSummary.sessionCount > 1 && (
                   <Suspense fallback={<div aria-hidden="true" className="h-80 panel animate-pulse" />}>
                     <SessionScatter multiSummary={resolvedMultiSummary} onSessionClick={handleSessionClick} />
