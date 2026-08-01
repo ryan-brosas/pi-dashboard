@@ -197,7 +197,7 @@ function SessionScatterInner({ multiSummary, onSessionClick }: Props) {
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-2xs">
         {Array.from(modelToColor.entries()).map(([model, color]) => (
           <div key={model} className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+            <div className="h-2 w-2 rounded-sm" style={{ background: color }} />
             <span className="text-[var(--text-tertiary)]">{model.split('/').pop()}</span>
           </div>
         ))}
