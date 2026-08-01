@@ -65,7 +65,7 @@
   /* Semantic status. Disjoint from --data-*. */
   --danger: #d98080;
   --success: #7fc3a9;
-  --warning: #c9a961;
+  --warning: #d69a4a;
 }
 
 .light {

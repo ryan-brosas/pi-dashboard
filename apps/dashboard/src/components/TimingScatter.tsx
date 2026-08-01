@@ -209,23 +209,19 @@ function TimingScatterInner({ data, onPointClick, thresholds }: Props) {
         </ResponsiveContainer>
       </div>
 
+      {/* Swatches read from colorMap so the legend cannot drift from the plot. */}
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-2xs">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-moss" />
-          <span className="text-[var(--text-tertiary)]">Fast (cached, &gt;{formatThreshold(cacheThreshold)})</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-accent" />
-          <span className="text-[var(--text-tertiary)]">Normal</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-ember" />
-          <span className="text-[var(--text-tertiary)]">Slow zone ({formatThreshold(lowContext)}–{formatThreshold(cacheThreshold)})</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-amber" />
-          <span className="text-[var(--text-tertiary)]">Anomaly (massive new input)</span>
-        </div>
+        {([
+          ['fast', `Fast (cached, >${formatThreshold(cacheThreshold)})`],
+          ['normal', 'Normal'],
+          ['slow', `Slow zone (${formatThreshold(lowContext)}–${formatThreshold(cacheThreshold)})`],
+          ['anomaly', 'Anomaly (massive new input)'],
+        ] as const).map(([key, label]) => (
+          <div key={key} className="flex items-center gap-1.5">
+            <div className="h-2 w-2 rounded-sm" style={{ background: colorMap[key] }} />
+            <span className="text-[var(--text-tertiary)]">{label}</span>
+          </div>
+        ))}
       </div>
     </motion.div>
   );
