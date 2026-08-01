@@ -159,7 +159,7 @@ function MarketWatch({
     return <div role="status" className="min-h-[60dvh] grid place-items-center text-sm text-[var(--text-tertiary)]">Loading the model market…</div>;
   }
   if (catalogError && !catalog) {
-    return <div role="alert" className="m-8 rounded-lg border border-ember/20 bg-ember/5 p-5 text-sm text-ember">Pricing watcher failed: {catalogError}</div>;
+    return <div role="alert" className="m-8 rounded-md border border-ember/20 bg-ember/5 p-5 text-sm text-ember">Pricing watcher failed: {catalogError}</div>;
   }
   if (!catalog) return null;
 
@@ -239,7 +239,7 @@ function MarketWatch({
       </div>
 
       {catalogError && (
-        <div role="alert" className="rounded-lg border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">
+        <div role="alert" className="rounded-md border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">
           Watcher refresh failed. {catalogError} Showing the last valid catalog.
         </div>
       )}
@@ -256,7 +256,7 @@ function MarketWatch({
       )}
 
       {paygMode && workloadMode === 'actual' && usageError && (
-        <div role="alert" className="rounded-lg border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
+        <div role="alert" className="rounded-md border border-ember/20 bg-ember/5 px-4 py-3 text-xs text-ember">Usage query failed: {String(usageError)}</div>
       )}
 
       {paygMode && workloadMode === 'actual' && pricedUsage && (pricedUsage.summary.estimatedModelCount > 0 || pricedUsage.summary.unpricedModelCount > 0) && (

@@ -128,7 +128,7 @@ function UsageDashboard({
     return <div role="status" className="min-h-[60dvh] grid place-items-center text-sm text-[var(--text-tertiary)]">Loading usage history…</div>;
   }
   if (error) {
-    return <div role="alert" className="m-8 p-5 rounded-lg border border-ember/20 bg-ember/5 text-sm text-ember">Usage query failed: {String(error)}</div>;
+    return <div role="alert" className="m-8 p-5 rounded-md border border-ember/20 bg-ember/5 text-sm text-ember">Usage query failed: {String(error)}</div>;
   }
   if (!data || data.summary.totalCalls === 0) {
     return (

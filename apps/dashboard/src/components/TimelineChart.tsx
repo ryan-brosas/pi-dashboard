@@ -88,7 +88,7 @@ function CustomTooltip({ active, payload, metric, sessionRate }: { active?: bool
   const multStr = showMultRange ? `${multLo.toFixed(2)}× – ${multHi.toFixed(2)}×` : `${costMultiplier.toFixed(2)}×`;
 
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-sm" style={{ minWidth: 240 }}>
+    <div className="glass-panel px-4 py-3 text-sm" style={{ minWidth: 240 }}>
       <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">{String(data.label)}</p>
       <div className="flex items-baseline gap-2">
         <span className="metric-mono text-lg font-bold text-[var(--text-primary)]" style={{ color: isCostMode ? config.color : undefined }}>
@@ -245,7 +245,7 @@ function CostDecompositionPanel({
 
   return (
     <div
-      className="glass-panel rounded-lg text-sm overflow-hidden"
+      className="glass-panel text-sm overflow-hidden"
       style={{ minWidth: 224, maxWidth: 248 }}
     >
       <div className="px-3 py-2.5">

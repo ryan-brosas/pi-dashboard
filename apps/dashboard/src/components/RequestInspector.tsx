@@ -181,7 +181,7 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                     type="button"
                     onClick={() => onSelect(null)}
                     aria-label="Close request detail"
-                    className="p-2 rounded-lg bg-[var(--surface-inset)] dark:bg-white/[0.04] hover:bg-[var(--surface-hover)] transition-colors active:scale-[0.95]"
+                    className="p-2 rounded-md bg-[var(--surface-inset)] dark:bg-white/[0.04] hover:bg-[var(--surface-hover)] transition-colors active:scale-[0.95]"
                   >
                     <X size={16} className="text-[var(--text-secondary)]" />
                   </button>
@@ -251,17 +251,17 @@ function RequestInspectorInner({ timeline, selectedId, onSelect, thresholds, pri
                     return (
                       <>
                         <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-moss/5 dark:bg-moss/10 rounded-lg px-2 sm:px-3 py-2.5 text-center">
+                          <div className="bg-moss/5 dark:bg-moss/10 rounded-md px-2 sm:px-3 py-2.5 text-center">
                             <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Active</p>
                             <p className="metric-mono text-sm font-bold text-moss mt-0.5">{formatTps(activeTps)}</p>
                             <p className="text-2xs text-[var(--text-tertiary)]">tok/s</p>
                           </div>
-                          <div className="bg-accent/5 dark:bg-accent/10 rounded-lg px-2 sm:px-3 py-2.5 text-center">
+                          <div className="bg-accent/5 dark:bg-accent/10 rounded-md px-2 sm:px-3 py-2.5 text-center">
                             <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Wall</p>
                             <p className="metric-mono text-sm font-bold text-accent mt-0.5">{formatTps(wallTps)}</p>
                             <p className="text-2xs text-[var(--text-tertiary)]">tok/s</p>
                           </div>
-                          <div className="bg-ember/5 dark:bg-ember/10 rounded-lg px-2 sm:px-3 py-2.5 text-center">
+                          <div className="bg-ember/5 dark:bg-ember/10 rounded-md px-2 sm:px-3 py-2.5 text-center">
                             <p className="text-2xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Loss</p>
                             <p className={`metric-mono text-sm font-bold mt-0.5 ${lossTps > 50 ? 'text-ember' : lossTps > 20 ? 'text-amber' : 'text-[var(--text-secondary)]'}`}>{lossTps.toFixed(1)}%</p>
                             <p className="text-2xs text-[var(--text-tertiary)]">of active</p>
@@ -557,7 +557,7 @@ function TokenPill({ label, value, color }: { label: string; value: number; colo
 
 function TimingPill({ label, value, highlight, warn }: { label: string; value: string; highlight?: boolean; warn?: boolean }) {
   return (
-    <div className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+    <div className={`flex items-center justify-between px-3 py-2 rounded-md ${
       highlight ? 'bg-accent/5' : warn ? 'bg-ember/5' : 'bg-[var(--surface-inset)]'
     }`}>
       <span className="text-2xs font-medium text-[var(--text-tertiary)]">{label}</span>

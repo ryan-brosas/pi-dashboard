@@ -33,7 +33,7 @@ function SessionTooltip({ active, payload, hasCost }: { active?: boolean; payloa
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as Record<string, unknown>;
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-sm" style={{ minWidth: 240 }}>
+    <div className="glass-panel px-4 py-3 text-sm" style={{ minWidth: 240 }}>
       <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">
         {String(d.fileName || String(d.sessionId).slice(0, 24))}
       </p>

@@ -18,7 +18,7 @@ function CacheTooltip({ active, payload }: { active?: boolean; payload?: Array<{
   if (!active || !payload?.length) return null;
   const d = payload[0];
   return (
-    <div className="glass-panel rounded-lg px-3 py-2 text-xs">
+    <div className="glass-panel px-3 py-2 text-xs">
       <span className="font-semibold text-[var(--text-primary)]">{d.name}:</span> <span className="metric-mono">{d.value?.toLocaleString()}</span>
     </div>
   );

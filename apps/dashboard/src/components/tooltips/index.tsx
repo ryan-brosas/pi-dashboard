@@ -6,7 +6,7 @@ import { TOKEN_SERIES } from '../../lib/seriesColors';
 export function TpsTooltip({ activeTps, wallTps, lossPct, mode }: { activeTps: number; wallTps: number; lossPct: number; mode: 'avg' | 'weighted' }) {
   const wallShare = activeTps > 0 ? (wallTps / activeTps) * 100 : 0;
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+    <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
         <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{mode === 'avg' ? 'Average' : 'Weighted'} Speed</p>
         <p className="text-2xs text-[var(--text-tertiary)]">tok/s</p>
@@ -85,7 +85,7 @@ export function RequestsTooltip({
   const fastPct = total > 0 ? (fastCalls / total) * 100 : 0;
 
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+    <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
         <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Requests</p>
         <p className="text-2xs text-[var(--text-tertiary)]">calls</p>
@@ -186,7 +186,7 @@ export function TotalTimeTooltip({ wallClockMs, totalTimeMs, generationMs }: { w
   const idlePct = (idle / denominator) * 100;
 
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+    <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
         <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Time Breakdown</p>
       </div>
@@ -267,7 +267,7 @@ export function TotalTimeTooltip({ wallClockMs, totalTimeMs, generationMs }: { w
 
 export function TtftTooltip({ avgTtft, p50, p75, p90, p99, min, max }: { avgTtft: number; p50: number; p75: number; p90: number; p99: number; min: number; max: number }) {
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+    <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
         <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Time to First Token</p>
         <p className="text-2xs text-[var(--text-tertiary)]">latency</p>
@@ -316,7 +316,7 @@ export function StallsTooltip({ count, ms, totalTimeMs }: { count: number; ms: n
   const stallPct = totalTimeMs > 0 ? (ms / totalTimeMs) * 100 : 0;
   const avgStall = count > 0 ? ms / count : 0;
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+    <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
         <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Stall Analysis</p>
         <Warning weight="bold" size={12} className="text-ember" />
@@ -365,7 +365,7 @@ export function CostTooltip({ totalCost, energyCost, costSource, models, totalTo
 }) {
   if (totalCost === null) {
     return (
-      <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+      <div className="glass-panel px-4 py-3 text-xs">
         <div className="flex items-center justify-between mb-2">
           <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Cost</p>
         <Info weight="bold" size={12} className="text-[var(--text-tertiary)]" />
@@ -382,7 +382,7 @@ export function CostTooltip({ totalCost, energyCost, costSource, models, totalTo
   const costPer1M = totalTokens > 0 ? (totalCost / (totalTokens / 1_000_000)) : 0;
 
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+    <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
         <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Total Cost</p>
         <p className="text-2xs text-[var(--text-tertiary)]">USD</p>
@@ -480,7 +480,7 @@ export function TokensTooltip({ input, output, cacheRead, cacheWrite, total, tot
   const cacheReadPct = total > 0 ? (cacheRead / total) * 100 : 0;
   const cacheWritePct = total > 0 ? (cacheWrite / total) * 100 : 0;
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-xs">
+    <div className="glass-panel px-4 py-3 text-xs">
       <div className="flex items-center justify-between mb-2">
         <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Token Breakdown</p>
         <p className="text-2xs text-[var(--text-tertiary)]">tokens</p>

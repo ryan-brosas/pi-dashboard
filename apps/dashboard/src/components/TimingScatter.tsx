@@ -24,7 +24,7 @@ function TimingTooltip({ active, payload }: { active?: boolean; payload?: Array<
   const loss = tps > 0 ? ((tps - wallTps) / tps) * 100 : 0;
   const wallShare = tps > 0 ? (wallTps / tps) * 100 : 0;
   return (
-    <div className="glass-panel rounded-lg px-4 py-3 text-sm" style={{ minWidth: 220 }}>
+    <div className="glass-panel px-4 py-3 text-sm" style={{ minWidth: 220 }}>
       <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">
         Request #{Number(d.index) + 1}
       </p>

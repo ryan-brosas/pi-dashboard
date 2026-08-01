@@ -1185,7 +1185,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
   }, [result, displayColumns, tree, groupByCols, isTrivialTree]);
 
   return (
-    <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-lg overflow-hidden flex flex-col min-h-0 h-full">
+    <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-md overflow-hidden flex flex-col min-h-0 h-full">
       {/* Header — title + collapsed query + collapse toggle */}
       <div
         onClick={() => editorCollapsed ? expandEditor() : (result ? collapseEditor() : undefined)}
@@ -1232,7 +1232,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
       >
       <div ref={editorContentRef} className="px-4 pt-3 space-y-2">
         {/* SQL editor */}
-        <div className="relative rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-colors focus-within:border-accent/40 dark:focus-within:border-accent/40">
+        <div className="relative rounded-md border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-colors focus-within:border-accent/40 dark:focus-within:border-accent/40">
           <div ref={editorRef} className="min-h-[120px] max-h-[280px] overflow-auto" />
           {/* Bottom bar */}
           <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--border-subtle)] dark:border-white/[0.04]">
@@ -1296,7 +1296,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
               setDragOverZone(false);
           }}
           onDrop={handleDrop}
-          className={`rounded-lg border-2 border-dashed h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
+          className={`rounded-md border-2 border-dashed h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
             zoneGroupByCols.length > 0 || dragOverZone
               ? 'border-accent/40 bg-accent/5 dark:bg-accent/10'
               : 'border-[var(--border)] bg-[var(--surface)]'
@@ -1335,7 +1335,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
         {/* Error */}
         {error && (
           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-            className="p-3 rounded-lg border border-red-200/40 dark:border-red-500/20 bg-red-50/50 dark:bg-red-500/5"
+            className="p-3 rounded-md border border-red-200/40 dark:border-red-500/20 bg-red-50/50 dark:bg-red-500/5"
           >
             <div className="flex items-start gap-3">
               <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-red-500/10">
@@ -1361,7 +1361,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
               setDragOverZone(false);
           }}
           onDrop={handleDrop}
-          className={`rounded-lg border-2 border-dashed mx-4 mt-2 mb-2 h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
+          className={`rounded-md border-2 border-dashed mx-4 mt-2 mb-2 h-[36px] overflow-hidden transition-all duration-200 ${dragOverZone ? 'scale-[1.005]' : ''} ${
             zoneGroupByCols.length > 0 || dragOverZone
               ? 'border-accent/40 bg-accent/5 dark:bg-accent/10'
               : 'border-[var(--border)] bg-[var(--surface)]'
@@ -1395,7 +1395,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
 
       {/* Loading skeleton */}
       {running && !result && (
-        <div className="m-4 rounded-lg overflow-hidden border border-[var(--border)] flex-1 min-h-0">
+        <div className="m-4 rounded-md overflow-hidden border border-[var(--border)] flex-1 min-h-0">
           <div className="px-3 py-2 border-b border-[var(--border-subtle)] bg-white">
             <div className="h-3 w-32 rounded-sm bg-[var(--surface-inset)] animate-pulse" />
           </div>
@@ -1405,9 +1405,9 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
 
       {/* Empty */}
       {!result && !running && !error && !editorCollapsed && (
-        <div className="m-4 rounded-lg border border-[var(--border)] p-10 flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--surface)]">
+        <div className="m-4 rounded-md border border-[var(--border)] p-10 flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--surface)]">
           <div className="flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-[var(--surface-inset)] dark:bg-white/[0.04]">
+            <div className="w-10 h-10 rounded-md flex items-center justify-center mb-3 bg-[var(--surface-inset)] dark:bg-white/[0.04]">
               <Table size={20} className="text-[var(--text-tertiary)]" />
             </div>
             <p className="text-sm font-medium mb-0.5 text-[var(--text-secondary)]">No data yet</p>
@@ -1421,7 +1421,7 @@ function SqlPlayground({ dbVersion, activeSessionId }: SqlPlaygroundProps) {
       {/* Results */}
       {result && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className={'relative mx-4 mb-4 ' + (editorCollapsed ? 'mt-0 ' : 'mt-2 ') + 'rounded-lg border border-[var(--border)] flex-1 min-h-0 flex flex-col bg-[var(--surface-raised)] overflow-hidden'}
+          className={'relative mx-4 mb-4 ' + (editorCollapsed ? 'mt-0 ' : 'mt-2 ') + 'rounded-md border border-[var(--border)] flex-1 min-h-0 flex flex-col bg-[var(--surface-raised)] overflow-hidden'}
         >
           <div ref={scrollContainerRef} className="overflow-auto flex-1 min-h-0 max-h-full custom-scrollbar" style={{ overscrollBehavior: 'none' }}>
             <table className="text-left" style={{ tableLayout: 'fixed', width: '100%' }}>
