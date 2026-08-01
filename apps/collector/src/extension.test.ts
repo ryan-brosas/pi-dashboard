@@ -80,5 +80,7 @@ describe('history dashboard server', () => {
     expect(payload.sessions[0].raw).toContain('assistant-1');
 
     shutdown?.();
-  });
+    // The poll above allows 300 x 30ms = 9s for the server to bind, so the
+    // test timeout must exceed that; the 5s default killed it under load.
+  }, 15_000);
 });
