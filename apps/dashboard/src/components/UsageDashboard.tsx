@@ -258,7 +258,7 @@ function UsageDashboard({
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="card-surface overflow-hidden">
-          <div className="px-5 py-4 border-b border-[var(--border)]"><h3 className="text-sm font-semibold text-[var(--text-primary)]">Models</h3></div>
+          <div className="px-5 py-4 border-b border-[var(--border)]"><h3 className="ui-title">Models</h3></div>
           <div className="overflow-x-auto"><table className="w-full text-2xs"><thead><tr className="text-2xs uppercase tracking-wider text-[var(--text-tertiary)]"><th className="text-left px-5 py-2">Model</th><th className="text-right px-3 py-2">Calls</th><th className="text-right px-3 py-2">Tokens</th><th className="text-right px-3 py-2">Cache</th><th className="text-right px-5 py-2">Cost</th></tr></thead><tbody>
             {pricedData.models.map((model) => <tr key={`${model.provider}:${model.modelId}`} className="border-t border-[var(--border-subtle)]"><td className="px-5 py-2.5"><span className="font-medium text-[var(--text-primary)]">{model.modelId}</span><span className="block text-2xs text-[var(--text-tertiary)]">{pricingLabel(model)}</span></td><td className="px-3 py-2.5 text-right metric-mono">{formatNumber(model.calls, 0)}</td><td className="px-3 py-2.5 text-right metric-mono">{formatNumber(model.totalTokens)}</td><td className="px-3 py-2.5 text-right metric-mono">{pct(model.cacheHitPct)}</td><td className="px-5 py-2.5 text-right metric-mono">{formatCurrency(model.resolvedCostUsd)}{model.costSource === 'catalog' && <span className="ml-1 text-2xs uppercase text-accent">est.</span>}</td></tr>)}
           </tbody></table></div>
@@ -266,7 +266,7 @@ function UsageDashboard({
 
         <div className="card-surface overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Recent runs</h3>
+            <h3 className="ui-title">Recent runs</h3>
             <span className="text-2xs text-[var(--text-tertiary)]" aria-live="polite">
               {hiddenRunCount > 0
                 ? `Showing ${visibleSessions.length} of ${pricedData.sessions.length} runs`
